@@ -188,7 +188,8 @@ The build still happens in the Linux container; only the loading, the agent and 
 Windows. No udev rules are needed. Requirements: [Python 3](https://www.python.org/downloads/),
 [Node.js LTS](https://nodejs.org/) and the OpenSSH client built into Windows 10/11.
 
-In PowerShell (replace `<VM>` with the machine holding the build):
+In PowerShell **on the Windows PC** (replace `<VM>` with the machine holding the build; if its
+SSH server is not on port 22, add `-P <port>` to `scp` and `-p <port>` to `ssh`):
 
 ```powershell
 mkdir ledger-ssh; cd ledger-ssh
