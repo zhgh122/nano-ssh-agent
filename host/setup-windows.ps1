@@ -163,8 +163,9 @@ $loginExit = $LASTEXITCODE
 if ($loginExit -ne 0) { Fail "login with the Ledger failed (exit $loginExit): check the agent window" }
 
 Write-Host "`nDone." -ForegroundColor Green
-Write-Host "Next time: start the agent (in $HostDir):  `$env:LEDGER_TRANSPORT='usb'; node agent.js"
+Write-Host "Next time: start the agent:"
+Write-Host "  cd `"$HostDir`"; `$env:LEDGER_TRANSPORT='usb'; node agent.js"
 Write-Host "then in any window:"
 Write-Host "  `$env:SSH_AUTH_SOCK = '$Pipe'"
-Write-Host "  ssh -p $Port -o IdentitiesOnly=yes -i $PubFile $Remote"
+Write-Host "  ssh -p $Port -o IdentitiesOnly=yes -i `"$PubFile`" $Remote"
 Write-Host "Your old key is still authorized on the VM: keep it as a backup way in."
