@@ -18,7 +18,7 @@ cleanup() {
 trap cleanup EXIT
 
 ssh-keygen -q -t ed25519 -N '' -f "$D/host_key"
-cp "$HERE/ledger.pub" "$D/authorized_keys"
+cp "$HERE/speculos-test-key.pub" "$D/authorized_keys"
 cat > "$D/sshd_config" <<EOF
 ListenAddress 127.0.0.1
 Port $PORT
@@ -38,7 +38,7 @@ sleep 0.5
 
 echo "กำลัง login ... กดยืนยันบนเครื่อง"
 ssh -p "$PORT" \
-    -o IdentitiesOnly=yes -o IdentityFile="$HERE/ledger.pub" \
+    -o IdentitiesOnly=yes -o IdentityFile="$HERE/speculos-test-key.pub" \
     -o UserKnownHostsFile="$D/known_hosts" -o StrictHostKeyChecking=accept-new \
     -o BatchMode=yes -o ConnectTimeout=10 \
     "$(whoami)@127.0.0.1" 'echo "LOGIN-OK: $(whoami)@$(hostname)"'

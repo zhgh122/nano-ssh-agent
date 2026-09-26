@@ -5,7 +5,7 @@
     "ledgerDevTools.appSettings": {
         "selectedUseCase": "release",
         "selectedDevice": "Nano S Plus",
-        "selectedVariant": "BOL",
+        "selectedVariant": "SSH",
         "testsList": [
             "test_app_mainmenu.py::test_app_mainmenu",
             "test_appname_cmd.py::test_app_name",

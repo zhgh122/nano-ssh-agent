@@ -1,21 +1,24 @@
-# One-shot setup of Ledger SSH on Windows: fetch build + host files from the VM,
-# load the app on the Nano S Plus, start the agent, authorize the key on the VM
-# and test the login.
+# One-shot setup of Ledger SSH on Windows: fetch the build + host files from the
+# Linux machine that built them (the "build host"), load the app on the Nano S Plus,
+# start the agent, authorize the device key on that host and test the login.
 #
 # Usage (PowerShell):
-#   powershell -ExecutionPolicy Bypass -File .\setup-windows.ps1 -Key $HOME\.ssh\id_ed25519
+#   powershell -ExecutionPolicy Bypass -File .\setup-windows.ps1 -Target user@buildhost
+#   powershell -ExecutionPolicy Bypass -File .\setup-windows.ps1 -Target user@buildhost -Port 2222 -Key $HOME\.ssh\id_rsa
 #
 # Options:
-#   -VmHost / -Port / -User  where the build lives (default ubuntu@<VM>:2222)
-#   -Key                     private key you already use for the VM (auto-detected if omitted)
-#   -SkipLoad                do not (re)install the app on the device
+#   -Target      user@host of the build host (required)
+#   -Port        its SSH port (default 22)
+#   -RemoteDir   repository path on the build host, relative to the home (default ledger-ssh)
+#   -Key         private key you already use for that host (auto-detected if omitted)
+#   -SkipLoad    do not (re)install the app on the device
 #
 # ASCII only on purpose: Windows PowerShell 5.1 misreads UTF-8 files without BOM.
 
 param(
-    [string]$VmHost = "<VM>",
-    [int]$Port = 2222,
-    [string]$User = "ubuntu",
+    [Parameter(Mandatory = $true)][string]$Target,
+    [int]$Port = 22,
+    [string]$RemoteDir = "ledger-ssh",
     [string]$Key = "",
     [switch]$SkipLoad
 )
@@ -26,7 +29,7 @@ $SpeculosKey = "AAAAC3NzaC1lZDI1NTE5AAAAIAqcocsmbdi1GiH4KgTy+TFtIgQxfaABSCkblCmK
 $Dir = Join-Path $HOME "ledger-ssh"
 $HostDir = Join-Path $Dir "host"
 $PubFile = Join-Path $HOME ".ssh\ledger_real.pub"
-$Remote = "$User@$VmHost"
+$Remote = $Target
 
 function Step($msg) { Write-Host "`n=== $msg ===" -ForegroundColor Cyan }
 function Fail($msg) { Write-Host "ERROR: $msg" -ForegroundColor Red; exit 1 }
@@ -63,7 +66,7 @@ $KeyArgs = @()
 if ($Key -ne "") {
     if (-not (Test-Path $Key)) { Fail "key file not found: $Key" }
     $KeyArgs = @("-i", $Key, "-o", "IdentitiesOnly=yes")
-    Write-Host "Using existing key $Key for the VM"
+    Write-Host "Using existing key $Key for the build host"
 } else {
     Write-Host "No key file given or found; relying on ~/.ssh/config or your usual agent"
 }
@@ -76,7 +79,7 @@ Remove-Item Env:SSH_AUTH_SOCK -ErrorAction SilentlyContinue
 # One scp (one passphrase prompt) into $Dir, then move the host files.
 # Never end a path argument with "\": PowerShell 5.1 quotes paths containing spaces
 # and a trailing backslash would escape the closing quote.
-& scp -P $Port @KeyArgs "${Remote}:ledger-ssh/build/nanos2/bin/app.*" "${Remote}:ledger-ssh/host/*.js" "${Remote}:ledger-ssh/host/package*.json" $Dir
+& scp -P $Port @KeyArgs "${Remote}:$RemoteDir/build/nanos2/bin/app.*" "${Remote}:$RemoteDir/host/*.js" "${Remote}:$RemoteDir/host/package*.json" $Dir
 Check-Exit "scp of the files"
 Move-Item -Force -Path (Join-Path $Dir "*.js"), (Join-Path $Dir "package*.json") -Destination $HostDir
 
@@ -132,7 +135,7 @@ Set-Content -Path $PubFile -Value $pubLine -Encoding ascii
 Write-Host "Saved $PubFile"
 Write-Host $pubLine
 
-# ---------------------------------------------------------------- authorize on VM
+# ---------------------------------------------------------------- authorize on build host
 Step "Adding the key to $Remote ~/.ssh/authorized_keys (using your existing key)"
 # Sent over stdin to bash, so no PowerShell quoting issues. Existing keys are kept;
 # a missing trailing newline is fixed first so the new key never joins another line.
@@ -152,7 +155,7 @@ fi
 "@
 $script = $script -replace "`r", ""
 $script | & ssh -p $Port @KeyArgs $Remote "tr -d '\r' | bash -s"
-Check-Exit "adding the key on the VM"
+Check-Exit "adding the key on the build host"
 
 # ---------------------------------------------------------------- test
 Step "Test login with the Ledger only"
@@ -168,4 +171,4 @@ Write-Host "  cd `"$HostDir`"; `$env:LEDGER_TRANSPORT='usb'; node agent.js"
 Write-Host "then in any window:"
 Write-Host "  `$env:SSH_AUTH_SOCK = '$Pipe'"
 Write-Host "  ssh -p $Port -o IdentitiesOnly=yes -i `"$PubFile`" $Remote"
-Write-Host "Your old key is still authorized on the VM: keep it as a backup way in."
+Write-Host "Your old key is still authorized on the build host: keep it as a backup way in."

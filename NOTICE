@@ -1,0 +1,13 @@
+Ledger SSH
+Copyright 2026 The Ledger SSH contributors
+
+This product is a modified version of app-boilerplate by Ledger SAS
+(https://github.com/LedgerHQ/app-boilerplate), licensed under the Apache License,
+Version 2.0. Copyright (c) 2020-2023 Ledger SAS.
+
+Main modifications: the boilerplate transaction, token and swap code was removed and
+replaced with ed25519 SSH signing (SIGN_SSH), an app-specific derivation path and a
+Node.js ssh-agent. See CHANGELOG.md and the git history for details.
+
+This project is not affiliated with or endorsed by Ledger SAS. "Ledger" and "Nano" are
+trademarks of Ledger SAS.

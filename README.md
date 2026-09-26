@@ -5,6 +5,12 @@ on the device. Every SSH login must be approved on the device screen.
 
 Based on the [Ledger C boilerplate](https://github.com/LedgerHQ/app-boilerplate) (Apache 2.0).
 
+> [!CAUTION]
+> **Independent, experimental project. Not affiliated with, endorsed by or supported by Ledger SAS.**
+> "Ledger" and "Nano" are trademarks of Ledger SAS and are used here only to name the hardware
+> this runs on. The code has not been audited. The device app is not signed by Ledger and must be
+> sideloaded. Use at your own risk and keep another way into your servers.
+
 > [!WARNING]
 > Speculos uses a publicly known test seed. Any key derived under Speculos is public:
 > never put it in an `authorized_keys` file that stays around.
@@ -21,6 +27,8 @@ Based on the [Ledger C boilerplate](https://github.com/LedgerHQ/app-boilerplate)
 | `host/test-apdu.js` | APDU-level tests against Speculos |
 | `host/test-ssh-login.sh` | End-to-end login test against a throwaway local `sshd` |
 | `host/run-speculos.sh` | Runs Speculos with its ports on `127.0.0.1` only |
+| `host/setup-windows.ps1` | One-shot Windows setup (fetch, load, agent, authorize, test) |
+| `host/speculos-test-key.pub` | Public key of the Speculos test seed, used by the tests only |
 | `tests/standalone/` | Ragger functional tests (all devices) |
 | `APP_SPECIFICATION.md` | APDU protocol |
 
@@ -104,7 +112,7 @@ SSH_AUTH_SOCK=/tmp/ledger-agent.sock host/test-ssh-login.sh   # agent must be ru
 ## Install on a real Nano S Plus
 
 > [!IMPORTANT]
-> - `host/ledger.pub` is the **Speculos** key (public test seed). Never authorize it on a real server.
+> - `host/speculos-test-key.pub` is the **Speculos** key (public test seed). Never authorize it on a real server.
 >   Your real key comes from your device seed and is different.
 > - The app is not signed by Ledger, so it is sideloaded. The device will warn that the app is
 >   not genuine; this is expected for your own build.
@@ -185,11 +193,12 @@ the device to sign a test message.
 ### Windows
 
 Quickest: `host/setup-windows.ps1` does all the steps below (fetch, load, npm install, start the
-agent, authorize the key on the VM without touching existing keys, test the login):
+agent, authorize the key on the build host without touching existing keys, test the login):
 
 ```powershell
-scp -P 2222 ubuntu@<VM>:ledger-ssh/host/setup-windows.ps1 $HOME\
-powershell -ExecutionPolicy Bypass -File $HOME\setup-windows.ps1 -VmHost <VM> -Port 2222
+scp user@buildhost:ledger-ssh/host/setup-windows.ps1 $HOME\
+powershell -ExecutionPolicy Bypass -File $HOME\setup-windows.ps1 -Target user@buildhost
+# options: -Port 2222  -Key $HOME\.ssh\id_rsa  -RemoteDir path/to/repo  -SkipLoad
 ```
 
 Manual steps:
@@ -198,14 +207,14 @@ The build still happens in the Linux container; only the loading, the agent and 
 Windows. No udev rules are needed. Requirements: [Python 3](https://www.python.org/downloads/),
 [Node.js LTS](https://nodejs.org/) and the OpenSSH client built into Windows 10/11.
 
-In PowerShell **on the Windows PC** (replace `<VM>` with the machine holding the build; if its
+In PowerShell **on the Windows PC** (replace `user@buildhost` with the machine holding the build; if its
 SSH server is not on port 22, add `-P <port>` to `scp` and `-p <port>` to `ssh`):
 
 ```powershell
 mkdir ledger-ssh; cd ledger-ssh
-scp "ubuntu@<VM>:ledger-ssh/build/nanos2/bin/app.*" .
+scp "user@buildhost:ledger-ssh/build/nanos2/bin/app.*" .
 mkdir host
-scp "ubuntu@<VM>:ledger-ssh/host/*.js" "ubuntu@<VM>:ledger-ssh/host/package*.json" host/
+scp "user@buildhost:ledger-ssh/host/*.js" "user@buildhost:ledger-ssh/host/package*.json" host/
 
 # load the app (device unlocked, on the dashboard, Ledger Live closed)
 py -m venv ledger-venv
@@ -226,8 +235,8 @@ In a second PowerShell window:
 ```powershell
 $env:SSH_AUTH_SOCK = "\\.\pipe\ledger-ssh-agent"
 ssh-add -L | Out-File -Encoding ascii $HOME\.ssh\ledger_real.pub
-Get-Content $HOME\.ssh\ledger_real.pub | ssh ubuntu@<VM> "cat >> ~/.ssh/authorized_keys"
-ssh -o IdentitiesOnly=yes -i $HOME\.ssh\ledger_real.pub ubuntu@<VM>
+Get-Content $HOME\.ssh\ledger_real.pub | ssh user@buildhost "cat >> ~/.ssh/authorized_keys"
+ssh -o IdentitiesOnly=yes -i $HOME\.ssh\ledger_real.pub user@buildhost
 ```
 
 On Windows the agent uses the named pipe `\\.\pipe\ledger-ssh-agent` instead of a Unix socket.
@@ -243,4 +252,13 @@ It does not conflict with the Windows "OpenSSH Authentication Agent" service, wh
 | `6511`, `6e01`, `6d02` (`app is not open`) | Open the Ledger SSH app on the device |
 | `6985 (rejected on device)` | Rejected on the device |
 | `6901 (device is busy...)` | Another program is talking to the device |
+
+## Security
+
+See [SECURITY.md](SECURITY.md) for the threat model and how to report a vulnerability.
+
+## License
+
+Apache License 2.0, see [LICENSE.md](LICENSE.md). This is a modified version of LedgerHQ's
+app-boilerplate; see [NOTICE](NOTICE).
 
