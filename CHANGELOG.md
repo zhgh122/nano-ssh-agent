@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.0] - 2026-09-26
+
+### Added
+
+- SIGN_SSH (INS 0x10): ed25519 signature of an SSH authentication message after on-device approval
+- Host `ssh-agent` (Node.js) using the device for REQUEST_IDENTITIES and SIGN_REQUEST
+
+### Changed
+
+- Renamed from Boilerplate to Ledger SSH
+- GET_PUBLIC_KEY returns a 32-byte SLIP-10 ed25519 key; the on-screen confirmation mode was removed
+- Only the ed25519 curve is requested
+
+### Removed
+
+- Boilerplate transaction/token signing (SIGN_TX, SIGN_TOKEN_TX), PROVIDE_TOKEN_INFO, swap support,
+  dummy settings and their tests
+
+The entries below are from the upstream boilerplate.
+
 ## [2.1.0] - 2023-10-06
 
 ### Changed

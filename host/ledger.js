@@ -1,7 +1,7 @@
 const SPECULOS_URL = process.env.SPECULOS_URL || 'http://localhost:5000';
 
 const INS_GET_PUBLIC_KEY = 0x05;
-const INS_SIGN = 0x06;
+const INS_SIGN_SSH = 0x10;
 const CHUNK_SIZE = 255;
 
 function encodePath(path) {
@@ -48,7 +48,7 @@ async function sign(path, message) {
     }
 
     // ก้อน 0: path
-    await exchange(buildApdu(INS_SIGN, 0x00, 0x80, encodePath(path)));
+    await exchange(buildApdu(INS_SIGN_SSH, 0x00, 0x80, encodePath(path)));
 
     // ก้อน 1, 2, ...: ข้อความ ทีละไม่เกิน 255 ไบต์
     let chunk = 1;
@@ -57,7 +57,7 @@ async function sign(path, message) {
         const part = message.subarray(offset, offset + CHUNK_SIZE);
         const isLast = offset + CHUNK_SIZE >= message.length;
         const p2 = isLast ? 0x00 : 0x80;
-        result = await exchange(buildApdu(INS_SIGN, chunk, p2, part));
+        result = await exchange(buildApdu(INS_SIGN_SSH, chunk, p2, part));
         chunk++;
     }
     return result;

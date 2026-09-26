@@ -6,7 +6,7 @@ bin/
 debug/
 
 # Nano NBGL reversed icon for Home Screen
-glyphs/home_boilerplate_14px.gif
+glyphs/home_ssh_14px.gif
 
 # Temporary directory with snapshots taken during test runs
 snapshots-tmp/

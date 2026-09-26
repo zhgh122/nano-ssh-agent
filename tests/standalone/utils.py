@@ -1,21 +1,17 @@
 import re
 from pathlib import Path
 
-from Crypto.Hash import keccak
-from ecdsa.curves import SECP256k1
-from ecdsa.keys import VerifyingKey
-from ecdsa.util import sigdecode_der
+from cryptography.exceptions import InvalidSignature
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
 
-# Check if a signature of a given message is valid
+# Check if an ed25519 signature of a given message is valid
 def check_signature_validity(public_key: bytes, signature: bytes, message: bytes) -> bool:
-    pk: VerifyingKey = VerifyingKey.from_string(public_key, curve=SECP256k1, hashfunc=None)
-    # Compute message hash (keccak_256)
-    k = keccak.new(digest_bits=256)
-    k.update(message)
-    message_hash = k.digest()
-
-    return pk.verify_digest(signature=signature, digest=message_hash, sigdecode=sigdecode_der)
+    try:
+        Ed25519PublicKey.from_public_bytes(public_key).verify(signature, message)
+    except InvalidSignature:
+        return False
+    return True
 
 
 def verify_name(name: str) -> None:
@@ -27,7 +23,7 @@ def verify_name(name: str) -> None:
 
     name_str = ""
     lines = _read_makefile()
-    name_re = re.compile(r"^APPNAME\s?=\s?\"?(?P<val>\w+)\"?", re.I)
+    name_re = re.compile(r"^APPNAME\s?=\s?\"(?P<val>[^\"]+)\"", re.I)
     for line in lines:
         info = name_re.match(line)
         if info:

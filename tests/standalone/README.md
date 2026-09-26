@@ -17,7 +17,7 @@ The standalone test suite ensures that:
 
 - The application launches correctly from the dashboard
 - The main menu and navigation behave as expected
-- Core commands (e.g., `GET_VERSION`, `GET_PUBLIC_KEY`, `SIGN_TX`) function properly
+- Core commands (e.g., `GET_VERSION`, `GET_PUBLIC_KEY`, `SIGN_SSH`) function properly
 - User approval flows work under normal conditions
 - Errors are correctly reported and handled
 

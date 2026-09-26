@@ -30,9 +30,7 @@
 #include "get_version.h"
 #include "get_app_name.h"
 #include "get_public_key.h"
-#include "sign_tx.h"
-#include "provide_token_info.h"
-#include "get_zero.h"
+#include "sign_ssh.h"
 
 int apdu_dispatcher(const command_t *cmd) {
     LEDGER_ASSERT(cmd != NULL, "NULL cmd");
@@ -58,15 +56,8 @@ int apdu_dispatcher(const command_t *cmd) {
 
             return handler_get_app_name();
 
-        case GET_ZERO:
-            if (cmd->p1 != 0 || cmd->p2 != 0) {
-                return io_send_sw(SWO_INCORRECT_P1_P2);
-            }
-
-            return handler_get_zero();
-
         case GET_PUBLIC_KEY:
-            if (cmd->p1 > 1 || cmd->p2 > 0) {
+            if (cmd->p1 != 0 || cmd->p2 != 0) {
                 return io_send_sw(SWO_INCORRECT_P1_P2);
             }
 
@@ -78,12 +69,9 @@ int apdu_dispatcher(const command_t *cmd) {
             buf.size = cmd->lc;
             buf.offset = 0;
 
-            return handler_get_public_key(&buf, (bool) cmd->p1);
+            return handler_get_public_key(&buf);
 
-        case SIGN_TX:
-        case SIGN_TOKEN_TX:
-            // Common handler for both SIGN_TX and SIGN_TOKEN_TX, the content is very similar
-            PRINTF("APDU_DISPATCHER: %d\n", cmd->ins);
+        case SIGN_SSH:
             if ((cmd->p1 == P1_START && cmd->p2 != P2_MORE) ||  //
                 cmd->p1 > P1_MAX ||                             //
                 (cmd->p2 != P2_LAST && cmd->p2 != P2_MORE)) {
@@ -98,27 +86,7 @@ int apdu_dispatcher(const command_t *cmd) {
             buf.size = cmd->lc;
             buf.offset = 0;
 
-            // We could have written a handler_sign_token_tx but in our example token TX are very
-            // simple so we just reuse handler_sign_tx + a boolean.
-            return handler_sign_tx(&buf,
-                                   cmd->p1,
-                                   (bool) (cmd->p2 & P2_MORE),
-                                   cmd->ins == SIGN_TOKEN_TX);
-
-        case PROVIDE_TOKEN_INFO:
-            if (cmd->p1 != 0 || cmd->p2 != 0) {
-                return io_send_sw(SWO_INCORRECT_P1_P2);
-            }
-
-            if (!cmd->data) {
-                return io_send_sw(SWO_WRONG_DATA_LENGTH);
-            }
-
-            buf.ptr = cmd->data;
-            buf.size = cmd->lc;
-            buf.offset = 0;
-
-            return handler_provide_token_info(&buf);
+            return handler_sign_ssh(&buf, cmd->p1, (bool) (cmd->p2 & P2_MORE));
 
         default:
             return io_send_sw(SWO_INVALID_INS);
