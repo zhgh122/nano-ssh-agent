@@ -184,6 +184,16 @@ the device to sign a test message.
 
 ### Windows
 
+Quickest: `host/setup-windows.ps1` does all the steps below (fetch, load, npm install, start the
+agent, authorize the key on the VM without touching existing keys, test the login):
+
+```powershell
+scp -P 2222 ubuntu@<VM>:ledger-ssh/host/setup-windows.ps1 $HOME\
+powershell -ExecutionPolicy Bypass -File $HOME\setup-windows.ps1 -VmHost <VM> -Port 2222
+```
+
+Manual steps:
+
 The build still happens in the Linux container; only the loading, the agent and `ssh` run on
 Windows. No udev rules are needed. Requirements: [Python 3](https://www.python.org/downloads/),
 [Node.js LTS](https://nodejs.org/) and the OpenSSH client built into Windows 10/11.
