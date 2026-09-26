@@ -32,6 +32,7 @@
 #include "get_public_key.h"
 #include "sign_tx.h"
 #include "provide_token_info.h"
+#include "get_zero.h"
 
 int apdu_dispatcher(const command_t *cmd) {
     LEDGER_ASSERT(cmd != NULL, "NULL cmd");
@@ -56,6 +57,13 @@ int apdu_dispatcher(const command_t *cmd) {
             }
 
             return handler_get_app_name();
+
+        case GET_ZERO:
+            if (cmd->p1 != 0 || cmd->p2 != 0) {
+                return io_send_sw(SWO_INCORRECT_P1_P2);
+            }
+
+            return handler_get_zero();
 
         case GET_PUBLIC_KEY:
             if (cmd->p1 > 1 || cmd->p2 > 0) {

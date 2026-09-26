@@ -43,12 +43,15 @@ int handler_get_public_key(buffer_t *cdata, bool display) {
         return io_send_sw(SWO_WRONG_DATA_LENGTH);
     }
 
-    cx_err_t error = bip32_derive_get_pubkey_256(CX_CURVE_256K1,
+    cx_err_t error = bip32_derive_with_seed_get_pubkey_256(HDW_ED25519_SLIP10,
+                                                 CX_CURVE_Ed25519,
                                                  G_context.bip32_path,
                                                  G_context.bip32_path_len,
                                                  G_context.pk_info.raw_public_key,
                                                  G_context.pk_info.chain_code,
-                                                 CX_SHA512);
+                                                 CX_SHA512,
+                                                 NULL,
+                                                 0);
 
     if (error != CX_OK) {
         return io_send_sw(error);

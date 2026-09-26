@@ -36,6 +36,9 @@
 #include "token_db.h"
 #include "swap_error_code_helpers.h"
 #include "dynamic_token_info.h"
+#include "sign_ssh.h"
+#include "nbgl_use_case.h"
+#include "menu.h"
 
 // This is a smart documentation inclusion. The full documentation is available at
 // https://ledgerhq.github.io/app-exchange/
@@ -149,6 +152,25 @@ static uint16_t process_transaction(bool is_token_tx) {
     return SWO_SUCCESS;
 }
 
+static void ssh_choice(bool confirm) {
+    if (confirm) {
+        cx_err_t cx_err = sign_ssh_message();
+        if (cx_err != CX_OK) {
+            explicit_bzero(&G_context, sizeof(G_context));
+            io_send_sw(SWO_INCORRECT_DATA);   // ← เอา return ออกจากหน้า
+            ui_menu_main();
+            return;                            // ← หยุดตรงนี้ ไม่ต้องส่งลายเซ็น
+        }
+        io_send_response_pointer(G_context.tx_info.signature,   // ← เอา return ออก
+                                 G_context.tx_info.signature_len,
+                                 SWO_SUCCESS);
+    } else {
+        io_send_sw(SWO_CONDITIONS_NOT_SATISFIED);  // ผู้ใช้กดปฏิเสธ
+    }
+    explicit_bzero(&G_context, sizeof(G_context));
+    ui_menu_main();
+}
+
 int handler_sign_tx(buffer_t *cdata, uint8_t chunk, bool more, bool is_token_tx) {
     uint8_t req_type = is_token_tx ? CONFIRM_TOKEN_TRANSACTION : CONFIRM_TRANSACTION;
     if (chunk == 0) {
@@ -162,45 +184,11 @@ int handler_sign_tx(buffer_t *cdata, uint8_t chunk, bool more, bool is_token_tx)
         }
         if (more) {
             // more APDUs with transaction part are expected.
-            // Send a SWO_SUCCESS to signal that we have received the chunk
             return io_send_sw(SWO_SUCCESS);
-
         } else {
-            // last APDU for this transaction, let's parse, display and request a sign confirmation
-            err = process_transaction(is_token_tx);
-            if (err != SWO_SUCCESS) {
-#ifdef HAVE_SWAP
-                if (G_called_from_swap) {
-                    PRINTF("Error during transaction processing in swap context: %u\n", err);
-                    // Suspicious error, Return to Exchange instead of simply return an error APDU
-                    send_swap_error_simple(SW_SWAP_FAIL, SWAP_EC_ERROR_GENERIC, SWAP_ERROR_CODE);
-                } else {
-                    return io_send_sw(err);
-                }
-#else
-                return io_send_sw(err);
-#endif
-            }
-
-#ifdef HAVE_SWAP
-            // If we are in swap context, do not redisplay the message data
-            // Instead, ensure they are identical with what was previously displayed
-            if (G_called_from_swap) {
-                check_and_sign_swap_tx(&G_context.tx_info);
-                // Unreachable
-                return 0;
-            }
-#endif  // HAVE_SWAP
-
-            // Example to trig a blind-sign flow
-            if (strcmp((char *) G_context.tx_info.transaction.memo, "Blind-sign") == 0) {
-                return ui_display_blind_signed_transaction();
-            } else if (is_token_tx) {
-                return ui_display_token_transaction();
-            } else {
-                return ui_display_transaction();
-            }
+            nbgl_useCaseChoice(&ICON_APP_BOILERPLATE, "Sign SSH login?", "Ledger SSH", "Approve", "Reject", ssh_choice);
+            return 0;
         }
     }
     return 0;
-}
+} 
