@@ -71,8 +71,13 @@ The message is limited to 510 bytes.
 |     |     | 01..03 : message chunk index | 00 : last chunk |   |
 
 - Chunk 0 (P1 = 00) must carry the path and P2 = 80.
+- Message chunks must be numbered 01, 02, 03 in order. A gap or a repeated index aborts the
+  flow with 6985.
 - The last message chunk has P2 = 00; the device then shows the approval screen and
   answers only once the user has approved or rejected.
+- While the approval screen is displayed, every other command is refused (the SDK answers
+  6901, and the app itself answers 6985 if a command reaches it), so the message being
+  approved cannot be changed or wiped.
 
 ##### `Input data (chunk 0)`
 
@@ -134,6 +139,7 @@ The signing context is wiped after the user's answer and after any error.
 | SW       | SW name                      | Description                                               |
 | ---      | ---                          | ---                                                       |
 |   9000   | OK                           | Success                                                   |
+|   6901   | SWO_COMMAND_NOT_ACCEPTED     | (SDK) command sent while the device still owes a reply    |
 |   6985   | SWO_CONDITIONS_NOT_SATISFIED | Rejected by user, or command received in a wrong state    |
 |   6A80   | SWO_INCORRECT_DATA           | Key derivation or signature failed (e.g. non-hardened path) |
 |   6A86   | SWO_INCORRECT_P1_P2          | Either P1 or P2 is incorrect                              |

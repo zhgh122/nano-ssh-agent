@@ -18,6 +18,15 @@ typedef enum {
 } command_e;
 
 /**
+ * Enumeration with the state of the SIGN_SSH flow.
+ */
+typedef enum {
+    SSH_STATE_NONE = 0,          /// no signing flow in progress
+    SSH_STATE_RECEIVING,         /// path received, message chunks expected
+    SSH_STATE_WAITING_APPROVAL,  /// message complete, approval screen displayed
+} ssh_state_e;
+
+/**
  * Structure for public key context information.
  */
 typedef struct {
@@ -33,12 +42,14 @@ typedef struct {
     size_t message_len;                    /// length of message
     uint8_t signature[ED25519_SIG_LEN];    /// ed25519 signature
     size_t signature_len;                  /// length of signature
+    uint8_t next_chunk;                    /// P1 expected for the next message chunk
 } ssh_ctx_t;
 
 /**
  * Structure for global context.
  */
 typedef struct {
+    ssh_state_e state;  /// state of the SIGN_SSH flow
     union {
         pubkey_ctx_t pk_info;  /// public key context
         ssh_ctx_t ssh_info;    /// SSH signing context

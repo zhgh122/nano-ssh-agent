@@ -39,6 +39,13 @@ int apdu_dispatcher(const command_t *cmd) {
         return io_send_sw(SWO_INVALID_CLA);
     }
 
+    // While the SSH approval screen is displayed, refuse every command: nothing
+    // may alter or wipe the context the user is approving. The SDK already
+    // rejects APDUs while a reply is pending; this does not rely on it.
+    if (G_context.state == SSH_STATE_WAITING_APPROVAL) {
+        return io_send_sw(SWO_CONDITIONS_NOT_SATISFIED);
+    }
+
     buffer_t buf = {0};
 
     switch (cmd->ins) {

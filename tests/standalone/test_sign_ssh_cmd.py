@@ -130,3 +130,24 @@ def test_sign_ssh_malformed_path(backend: BackendInterface) -> None:
         with pytest.raises(ExceptionRAPDU) as e:
             client.sign_ssh_chunk(P1.P1_START, data, last=False)
         assert e.value.status == Errors.SWO_WRONG_DATA_LENGTH, data.hex()
+
+
+# Message chunks must arrive in order 1, 2, 3...: any gap or replay aborts the flow
+def test_sign_ssh_chunks_out_of_order(backend: BackendInterface) -> None:
+    client = SshCommandSender(backend)
+
+    client.sign_ssh_start(PATH)
+    with pytest.raises(ExceptionRAPDU) as e:
+        client.sign_ssh_chunk(P1.P1_START + 2, b"skipped chunk 1", last=True)
+    assert e.value.status == Errors.SWO_CONDITIONS_NOT_SATISFIED
+
+    client.sign_ssh_start(PATH)
+    client.sign_ssh_chunk(P1.P1_START + 1, b"first", last=False)
+    with pytest.raises(ExceptionRAPDU) as e:
+        client.sign_ssh_chunk(P1.P1_START + 1, b"replayed index", last=True)
+    assert e.value.status == Errors.SWO_CONDITIONS_NOT_SATISFIED
+
+    # The flow was aborted: continuing it must fail
+    with pytest.raises(ExceptionRAPDU) as e:
+        client.sign_ssh_chunk(P1.P1_START + 2, b"second", last=True)
+    assert e.value.status == Errors.SWO_CONDITIONS_NOT_SATISFIED

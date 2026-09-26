@@ -38,7 +38,10 @@ static cx_err_t sign_ssh_message(void) {
 }
 
 static void ssh_choice(bool confirm) {
-    if (!confirm) {
+    if (G_context.state != SSH_STATE_WAITING_APPROVAL) {
+        // Context changed behind the approval screen: never sign
+        io_send_sw(SWO_CONDITIONS_NOT_SATISFIED);
+    } else if (!confirm) {
         io_send_sw(SWO_CONDITIONS_NOT_SATISFIED);
     } else if (sign_ssh_message() != CX_OK) {
         io_send_sw(SWO_INCORRECT_DATA);
@@ -57,16 +60,17 @@ static uint16_t init_sign_context(buffer_t *cdata) {
     if (!buffer_read_u8(cdata, &G_context.bip32_path_len) ||
         !buffer_read_bip32_path(cdata, G_context.bip32_path, (size_t) G_context.bip32_path_len) ||
         cdata->offset != cdata->size) {
-        explicit_bzero(&G_context, sizeof(G_context));
         return SWO_WRONG_DATA_LENGTH;
     }
+    G_context.ssh_info.next_chunk = 1;
+    G_context.state = SSH_STATE_RECEIVING;
     return SWO_SUCCESS;
 }
 
-static uint16_t accumulate_message(buffer_t *cdata) {
+static uint16_t accumulate_message(buffer_t *cdata, uint8_t chunk) {
     ssh_ctx_t *ctx = &G_context.ssh_info;
 
-    if (G_context.bip32_path_len == 0) {
+    if (G_context.state != SSH_STATE_RECEIVING || chunk != ctx->next_chunk) {
         return SWO_CONDITIONS_NOT_SATISFIED;
     }
     if (cdata->size > sizeof(ctx->message) - ctx->message_len) {
@@ -76,25 +80,28 @@ static uint16_t accumulate_message(buffer_t *cdata) {
         return SWO_INCORRECT_DATA;
     }
     ctx->message_len += cdata->size;
+    ctx->next_chunk++;
     return SWO_SUCCESS;
 }
 
 int handler_sign_ssh(buffer_t *cdata, uint8_t chunk, bool more) {
     uint16_t sw;
 
-    if (chunk == 0) {
-        return io_send_sw(init_sign_context(cdata));
+    if (G_context.state == SSH_STATE_WAITING_APPROVAL) {
+        // The approval screen is displayed: the message must not change
+        return io_send_sw(SWO_CONDITIONS_NOT_SATISFIED);
     }
 
-    sw = accumulate_message(cdata);
+    sw = (chunk == 0) ? init_sign_context(cdata) : accumulate_message(cdata, chunk);
     if (sw != SWO_SUCCESS) {
         explicit_bzero(&G_context, sizeof(G_context));
         return io_send_sw(sw);
     }
-    if (more) {
+    if (chunk == 0 || more) {
         return io_send_sw(SWO_SUCCESS);
     }
 
+    G_context.state = SSH_STATE_WAITING_APPROVAL;
     nbgl_useCaseChoice(&ICON_APP_SSH, "Sign SSH login?", APPNAME, "Approve", "Reject", ssh_choice);
     return 0;
 }

@@ -72,3 +72,20 @@ ledger_unit_tests_add_test(
     INCLUDE_DIRS   ${UT_INCLUDE_DIRS_SDK} ${UT_INCLUDE_DIRS}
     COMPILE_DEFS   ${UT_COMPILE_DEFS_SDK} ${UT_COMPILE_DEFS}
 )
+
+ledger_unit_tests_add_test(
+    NAME           test_sign_ssh
+    SOURCES        ${CMAKE_CURRENT_SOURCE_DIR}/../src/handler/sign_ssh.c
+                   ${CMAKE_CURRENT_SOURCE_DIR}/../src/apdu/dispatcher.c
+                   ${SDK_DIR}/lib_standard_app/buffer.c
+                   ${SDK_DIR}/lib_standard_app/read.c
+                   ${SDK_DIR}/lib_standard_app/bip32.c
+                   ${SDK_DIR}/lib_standard_app/write.c
+                   ${SDK_DIR}/lib_standard_app/varint.c
+    MOCK_HEADERS   ${SDK_DIR}/lib_standard_app/io.h
+                   ${CMAKE_CURRENT_SOURCE_DIR}/../src/handler/get_version.h
+                   ${CMAKE_CURRENT_SOURCE_DIR}/../src/handler/get_app_name.h
+                   ${CMAKE_CURRENT_SOURCE_DIR}/../src/handler/get_public_key.h
+    INCLUDE_DIRS   ${UT_INCLUDE_DIRS_SDK} ${UT_INCLUDE_DIRS}
+    COMPILE_DEFS   ${UT_COMPILE_DEFS_SDK} ${UT_COMPILE_DEFS}
+)

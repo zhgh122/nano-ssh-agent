@@ -1,9 +1,11 @@
 // ทดสอบคำสั่ง APDU ของแอปกับ Speculos (ใช้ seed ทดสอบเท่านั้น)
 // รัน: node test-apdu.js   (ต้องเปิด Speculos ไว้ที่ SPECULOS_URL)
 const crypto = require('crypto');
+const net = require('net');
 const { encodePath, buildApdu, getPublicKey, sign } = require('./ledger');
 
 const SPECULOS_URL = process.env.SPECULOS_URL || 'http://localhost:5000';
+const SPECULOS_APDU_PORT = Number(process.env.SPECULOS_APDU_PORT || 9999);
 const PATH = [44, 1, 0, 0, 0];
 const INS_SIGN_SSH = 0x10;
 
@@ -58,6 +60,82 @@ async function answerPrompt(choice) {
         await press('right');
     }
     throw new Error(`"${choice}" not found`);
+}
+
+// การเชื่อมต่อ TCP ตรงกับพอร์ต APDU ของ Speculos: ส่ง APDU ได้หลายก้อนโดยไม่ต้องรอคำตอบ
+// (REST API /apdu จับคู่คำตอบผิดเมื่อมีหลายคำขอพร้อมกัน จึงใช้ทดสอบกรณีนี้ไม่ได้)
+function rawTransport() {
+    const sock = net.connect(SPECULOS_APDU_PORT, '127.0.0.1');
+    let buf = Buffer.alloc(0);
+    const waiters = [];
+    const pump = () => {
+        while (waiters.length && buf.length >= 4 && buf.length >= 4 + buf.readUInt32BE(0) + 2) {
+            const n = buf.readUInt32BE(0);
+            const reply = buf.subarray(4, 4 + n + 2).toString('hex');
+            buf = buf.subarray(4 + n + 2);
+            waiters.shift()(reply);
+        }
+    };
+    sock.on('data', (d) => { buf = Buffer.concat([buf, d]); pump(); });
+    return {
+        ready: new Promise((r) => sock.once('connect', r)),
+        send(apduHex) {
+            const apdu = Buffer.from(apduHex, 'hex');
+            const len = Buffer.alloc(4);
+            len.writeUInt32BE(apdu.length);
+            sock.write(Buffer.concat([len, apdu]));
+        },
+        // คืน hex (ข้อมูล + SW) หรือ null ถ้าไม่มีคำตอบภายในเวลาที่กำหนด
+        next(timeoutMs = 2000) {
+            return Promise.race([
+                new Promise((r) => { waiters.push(r); pump(); }),
+                sleep(timeoutMs).then(() => { waiters.shift(); return null; }),
+            ]);
+        },
+        close() { sock.end(); },
+    };
+}
+
+// ระหว่างหน้าจอยืนยันขึ้นอยู่ APDU ใหม่ทุกคำสั่งต้องถูกปฏิเสธ และลายเซ็นต้องครอบคลุมเฉพาะข้อความเดิม
+async function testNoApduDuringPrompt(pub, path) {
+    const t = rawTransport();
+    await t.ready;
+    const msg = Buffer.from('message the user approves');
+    const extra = Buffer.from(' + appended by attacker');
+
+    t.send(buildApdu(INS_SIGN_SSH, 0, 0x80, path));
+    check('prompt test: path accepted', (await t.next()) === '9000');
+    t.send(buildApdu(INS_SIGN_SSH, 1, 0x00, msg));
+    check('prompt test: prompt shown', await waitForScreen('Sign SSH login?'));
+
+    // 6901 = SDK ปฏิเสธเพราะยังมีคำตอบค้าง, 6985 = แอปปฏิเสธเอง ทั้งสองแบบถือว่าปลอดภัย
+    const refused = (reply) => reply === '6901' || reply === '6985';
+    const rogue = [
+        ['append chunk 2', buildApdu(INS_SIGN_SSH, 2, 0x00, extra)],
+        ['restart with chunk 0', buildApdu(INS_SIGN_SSH, 0, 0x80, path)],
+        ['GET_PUBLIC_KEY', buildApdu(0x05, 0, 0, path)],
+        ['GET_VERSION', buildApdu(0x03, 0, 0, Buffer.alloc(0))],
+    ];
+    for (const [name, apdu] of rogue) {
+        t.send(apdu);
+        const reply = await t.next();
+        check(`prompt test: ${name} refused during prompt`, refused(reply), String(reply));
+    }
+    check('prompt test: prompt still shown', (await screenText()).includes('Sign SSH'));
+
+    await answerPrompt('Approve');
+    const reply = await t.next(5000);
+    const ok = reply !== null && reply.length === 132 && reply.endsWith('9000');
+    check('prompt test: approval returns a signature', ok, String(reply && reply.slice(-4)));
+    if (ok) {
+        const sig = reply.slice(0, 128);
+        check('prompt test: signature covers the original message', verify(pub, msg, sig));
+        check('prompt test: signature does not cover appended data',
+            !verify(pub, Buffer.concat([msg, extra]), sig));
+    }
+    check('prompt test: no extra response', (await t.next(500)) === null);
+    t.close();
+    await waitForScreen('app is ready');
 }
 
 function verify(pubHex, message, sigHex) {
@@ -127,6 +205,13 @@ async function main() {
     r = await raw(buildApdu(INS_SIGN_SSH, 1, 0x00, Buffer.from('x')));
     check('context cleared after reject', r.sw === '6985', r.sw);
 
+    // --- ลำดับก้อนต้องต่อเนื่อง ---
+    await raw(buildApdu(INS_SIGN_SSH, 0, 0x80, path));
+    r = await raw(buildApdu(INS_SIGN_SSH, 2, 0x00, Buffer.from('skip chunk 1')));
+    check('SIGN_SSH chunk index gap rejected', r.sw === '6985', r.sw);
+
+    // --- APDU ระหว่างหน้าจอยืนยัน ---
+    await testNoApduDuringPrompt(pub, path);
 
     console.log(failures ? `\n${failures} FAILED` : '\nALL PASSED');
     process.exit(failures ? 1 : 0);
