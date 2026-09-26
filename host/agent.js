@@ -4,7 +4,10 @@ const net = require('net');
 const fs = require('fs');
 const { TRANSPORT, SSH_PATH, getPublicKey, sign, close } = require('./ledger');
 
-const SOCK = process.env.LEDGER_AGENT_SOCK || '/tmp/ledger-agent.sock';
+// Windows: OpenSSH คุยกับ agent ผ่าน named pipe, ระบบอื่นใช้ Unix socket
+const IS_WINDOWS = process.platform === 'win32';
+const DEFAULT_SOCK = IS_WINDOWS ? '\\\\.\\pipe\\ledger-ssh-agent' : '/tmp/ledger-agent.sock';
+const SOCK = process.env.LEDGER_AGENT_SOCK || DEFAULT_SOCK;
 const PATH = SSH_PATH;
 const COMMENT = 'ledger';
 
@@ -120,18 +123,21 @@ function onConnection(conn) {
     conn.on('error', (err) => console.error('socket error:', err.message));
 }
 
-if (fs.existsSync(SOCK)) fs.unlinkSync(SOCK);   // ลบ socket เก่าที่ค้าง
+// named pipe หายไปเองเมื่อ process จบ ไม่ต้องลบ และไม่มี umask
+if (!IS_WINDOWS && fs.existsSync(SOCK)) fs.unlinkSync(SOCK);   // ลบ socket เก่าที่ค้าง
 const server = net.createServer(onConnection);
-const oldUmask = process.umask(0o177);          // ให้ socket เป็น 0600 ตั้งแต่สร้าง
+const oldUmask = IS_WINDOWS ? null : process.umask(0o177);   // ให้ socket เป็น 0600 ตั้งแต่สร้าง
 server.listen(SOCK, () => {
-    process.umask(oldUmask);
+    if (oldUmask !== null) process.umask(oldUmask);
     console.log(`agent รออยู่ที่ ${SOCK} (transport: ${TRANSPORT})`);
-    console.log(`ใช้งาน: export SSH_AUTH_SOCK=${SOCK}`);
+    console.log(IS_WINDOWS
+        ? `ใช้งาน (PowerShell): $env:SSH_AUTH_SOCK = "${SOCK}"`
+        : `ใช้งาน: export SSH_AUTH_SOCK=${SOCK}`);
 });
 
 async function shutdown() {
     server.close();
-    if (fs.existsSync(SOCK)) fs.unlinkSync(SOCK);
+    if (!IS_WINDOWS && fs.existsSync(SOCK)) fs.unlinkSync(SOCK);
     await close();
     process.exit(0);
 }

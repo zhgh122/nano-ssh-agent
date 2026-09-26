@@ -182,6 +182,47 @@ ssh user@server                             # approve "Sign SSH login?" on the d
 Quick check without SSH: `LEDGER_TRANSPORT=usb node ledger.js` prints the public key, then asks
 the device to sign a test message.
 
+### Windows
+
+The build still happens in the Linux container; only the loading, the agent and `ssh` run on
+Windows. No udev rules are needed. Requirements: [Python 3](https://www.python.org/downloads/),
+[Node.js LTS](https://nodejs.org/) and the OpenSSH client built into Windows 10/11.
+
+In PowerShell (replace `<VM>` with the machine holding the build):
+
+```powershell
+mkdir ledger-ssh; cd ledger-ssh
+scp "ubuntu@<VM>:ledger-ssh/build/nanos2/bin/app.*" .
+mkdir host
+scp "ubuntu@<VM>:ledger-ssh/host/*.js" "ubuntu@<VM>:ledger-ssh/host/package*.json" host/
+
+# load the app (device unlocked, on the dashboard, Ledger Live closed)
+py -m venv ledger-venv
+Set-ExecutionPolicy -Scope Process Bypass   # allow the venv activation script
+.\ledger-venv\Scripts\Activate.ps1
+pip install ledgerblue
+python -m ledgerblue.runScript --scp --fileName app.apdu --elfFile app.elf
+
+# agent (open the Ledger SSH app on the device first)
+cd host
+npm install
+$env:LEDGER_TRANSPORT = "usb"
+node agent.js                               # listens on \\.\pipe\ledger-ssh-agent
+```
+
+In a second PowerShell window:
+
+```powershell
+$env:SSH_AUTH_SOCK = "\\.\pipe\ledger-ssh-agent"
+ssh-add -L | Out-File -Encoding ascii $HOME\.ssh\ledger_real.pub
+Get-Content $HOME\.ssh\ledger_real.pub | ssh ubuntu@<VM> "cat >> ~/.ssh/authorized_keys"
+ssh -o IdentitiesOnly=yes -i $HOME\.ssh\ledger_real.pub ubuntu@<VM>
+```
+
+On Windows the agent uses the named pipe `\\.\pipe\ledger-ssh-agent` instead of a Unix socket.
+It does not conflict with the Windows "OpenSSH Authentication Agent" service, which uses
+`\\.\pipe\openssh-ssh-agent`; `SSH_AUTH_SOCK` selects which agent `ssh` talks to.
+
 ### Troubleshooting
 
 | Agent log / error | Cause |
