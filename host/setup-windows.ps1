@@ -73,10 +73,12 @@ Step "Fetching files from $Remote (port $Port)"
 New-Item -ItemType Directory -Force -Path $HostDir | Out-Null
 # Use the usual Windows agent (if any) for these connections, not the Ledger one
 Remove-Item Env:SSH_AUTH_SOCK -ErrorAction SilentlyContinue
-& scp -P $Port @KeyArgs "${Remote}:ledger-ssh/build/nanos2/bin/app.*" "$Dir\"
-Check-Exit "scp of the app build"
-& scp -P $Port @KeyArgs "${Remote}:ledger-ssh/host/*.js" "${Remote}:ledger-ssh/host/package*.json" "$HostDir\"
-Check-Exit "scp of the host files"
+# One scp (one passphrase prompt) into $Dir, then move the host files.
+# Never end a path argument with "\": PowerShell 5.1 quotes paths containing spaces
+# and a trailing backslash would escape the closing quote.
+& scp -P $Port @KeyArgs "${Remote}:ledger-ssh/build/nanos2/bin/app.*" "${Remote}:ledger-ssh/host/*.js" "${Remote}:ledger-ssh/host/package*.json" $Dir
+Check-Exit "scp of the files"
+Move-Item -Force -Path (Join-Path $Dir "*.js"), (Join-Path $Dir "package*.json") -Destination $HostDir
 
 # ---------------------------------------------------------------- load the app
 if (-not $SkipLoad) {
