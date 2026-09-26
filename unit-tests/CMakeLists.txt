@@ -77,6 +77,7 @@ ledger_unit_tests_add_test(
     NAME           test_sign_ssh
     SOURCES        ${CMAKE_CURRENT_SOURCE_DIR}/../src/handler/sign_ssh.c
                    ${CMAKE_CURRENT_SOURCE_DIR}/../src/apdu/dispatcher.c
+                   ${CMAKE_CURRENT_SOURCE_DIR}/../src/helper/ssh_path.c
                    ${SDK_DIR}/lib_standard_app/buffer.c
                    ${SDK_DIR}/lib_standard_app/read.c
                    ${SDK_DIR}/lib_standard_app/bip32.c

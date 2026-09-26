@@ -118,10 +118,16 @@ cx_err_t bip32_derive_with_seed_eddsa_sign_hash_256(unsigned int derivation_mode
 // ---- helpers ----
 static const uint8_t PATH[] = {5,                       // depth
                                0x80, 0x00, 0x00, 0x2C,  // 44'
-                               0x80, 0x00, 0x00, 0x01,  // 1'
+                               0xCC, 0x53, 0x53, 0x48,  // 1280529224' ("LSSH")
                                0x80, 0x00, 0x00, 0x00,  // 0'
                                0x80, 0x00, 0x00, 0x00,  // 0'
                                0x80, 0x00, 0x00, 0x00};  // 0'
+static const uint8_t ETH_PATH[] = {5,                       // depth
+                                   0x80, 0x00, 0x00, 0x2C,  // 44'
+                                   0x80, 0x00, 0x00, 0x3C,  // 60'
+                                   0x80, 0x00, 0x00, 0x00,  // 0'
+                                   0x00, 0x00, 0x00, 0x00,  // 0
+                                   0x00, 0x00, 0x00, 0x00};  // 0
 static const uint8_t MSG[] = "message shown to the user";
 static const uint8_t EXTRA[] = "attacker data";
 
@@ -267,6 +273,14 @@ void test_data_without_path_refused(void) {
     TEST_ASSERT_EQUAL(0, g_prompt_count);
 }
 
+void test_foreign_path_refused(void) {
+    TEST_ASSERT_EQUAL_HEX16(SWO_INCORRECT_DATA, send_chunk(ETH_PATH, sizeof(ETH_PATH), 0, true));
+    TEST_ASSERT_EQUAL(SSH_STATE_NONE, G_context.state);
+    TEST_ASSERT_EQUAL(0, G_context.bip32_path_len);
+    TEST_ASSERT_EQUAL_HEX16(SWO_CONDITIONS_NOT_SATISFIED, send_chunk(MSG, sizeof(MSG), 1, false));
+    TEST_ASSERT_EQUAL(0, g_prompt_count);
+}
+
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_approve_signs_exact_message);
@@ -276,5 +290,6 @@ int main(void) {
     RUN_TEST(test_choice_without_pending_flow_does_not_sign);
     RUN_TEST(test_chunks_must_be_sequential);
     RUN_TEST(test_data_without_path_refused);
+    RUN_TEST(test_foreign_path_refused);
     return UNITY_END();
 }

@@ -12,8 +12,10 @@ The application covers the following functionalities:
 - Retrieve the app name
 
 Keys are derived with SLIP-10 ed25519, which only supports hardened derivation.
-The app is only allowed to derive under `44'/1'` (see `PATH_APP_LOAD_PARAMS` in the `Makefile`).
-The host tools use `44'/1'/0'/0'/0'`.
+The app only derives under `m/44'/1280529224'` (1280529224 = `0x4C535348` = "LSSH"), with every
+level hardened and at least one level below the prefix. This is enforced by the OS on a real
+device (`PATH_APP_LOAD_PARAMS` in the `Makefile`) and by the app itself: any other path is
+refused with `6A80`. The host tools use `m/44'/1280529224'/0'/0'/0'`.
 
 The application interface can be accessed over HID or BLE.
 
@@ -141,7 +143,7 @@ The signing context is wiped after the user's answer and after any error.
 |   9000   | OK                           | Success                                                   |
 |   6901   | SWO_COMMAND_NOT_ACCEPTED     | (SDK) command sent while the device still owes a reply    |
 |   6985   | SWO_CONDITIONS_NOT_SATISFIED | Rejected by user, or command received in a wrong state    |
-|   6A80   | SWO_INCORRECT_DATA           | Key derivation or signature failed (e.g. non-hardened path) |
+|   6A80   | SWO_INCORRECT_DATA           | Path outside `m/44'/1280529224'`, not fully hardened, or signing failed |
 |   6A86   | SWO_INCORRECT_P1_P2          | Either P1 or P2 is incorrect                              |
 |   6A87   | SWO_WRONG_DATA_LENGTH        | Malformed path, or message longer than 510 bytes          |
 |   6D00   | SWO_INVALID_INS              | No command exists with INS                                |

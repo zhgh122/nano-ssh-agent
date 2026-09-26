@@ -13,6 +13,11 @@ MAX_SSH_MESSAGE_LEN: int = 510
 
 CLA: int = 0xE0
 
+# Derivation prefix reserved for the app (SSH_PATH_* in src/constants.h):
+# 1280529224 = 0x4C535348 = ASCII "LSSH"
+SSH_PATH_PREFIX: str = "m/44'/1280529224'"
+SSH_DEFAULT_PATH: str = f"{SSH_PATH_PREFIX}/0'/0'/0'"
+
 
 class P1(IntEnum):
     # Parameter 1 for first APDU number.

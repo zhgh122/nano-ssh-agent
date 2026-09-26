@@ -35,3 +35,12 @@
  * Length of an ed25519 signature (bytes).
  */
 #define ED25519_SIG_LEN 64
+
+/**
+ * Derivation path prefix reserved for this app: m/44'/1280529224'
+ * (1280529224 = 0x4C535348 = ASCII "LSSH"). Must match PATH_APP_LOAD_PARAMS
+ * in the Makefile. Every level below it must be hardened (SLIP-10 ed25519).
+ */
+#define SSH_PATH_PURPOSE    (0x80000000u | 44u)
+#define SSH_PATH_COIN_TYPE  (0x80000000u | 0x4C535348u)
+#define SSH_PATH_PREFIX_LEN 2

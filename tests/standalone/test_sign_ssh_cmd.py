@@ -11,6 +11,7 @@ from application_client.ssh_command_sender import (
     MAX_APDU_LEN,
     MAX_SSH_MESSAGE_LEN,
     P1,
+    SSH_DEFAULT_PATH,
     Errors,
     SshCommandSender,
 )
@@ -21,7 +22,7 @@ from application_client.ssh_response_unpacker import (
 
 from .utils import check_signature_validity
 
-PATH: str = "m/44'/1'/0'/0'/0'"
+PATH: str = SSH_DEFAULT_PATH
 
 
 def _answer_prompt(device: Device, navigator: Navigator, snapshots_path: str, test_name: str, approve: bool) -> None:
@@ -150,4 +151,16 @@ def test_sign_ssh_chunks_out_of_order(backend: BackendInterface) -> None:
     # The flow was aborted: continuing it must fail
     with pytest.raises(ExceptionRAPDU) as e:
         client.sign_ssh_chunk(P1.P1_START + 2, b"second", last=True)
+    assert e.value.status == Errors.SWO_CONDITIONS_NOT_SATISFIED
+
+
+def test_sign_ssh_foreign_path(backend: BackendInterface) -> None:
+    client = SshCommandSender(backend)
+    with pytest.raises(ExceptionRAPDU) as e:
+        client.sign_ssh_start("m/44'/60'/0'/0'/0'")
+    assert e.value.status == Errors.SWO_INCORRECT_DATA
+
+    # Nothing was stored: sending data afterwards must fail
+    with pytest.raises(ExceptionRAPDU) as e:
+        client.sign_ssh_chunk(P1.P1_START + 1, b"data", last=True)
     assert e.value.status == Errors.SWO_CONDITIONS_NOT_SATISFIED

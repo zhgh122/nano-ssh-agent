@@ -15,6 +15,7 @@
 #include "globals.h"
 #include "display.h"
 #include "menu.h"
+#include "ssh_path.h"
 
 static cx_err_t sign_ssh_message(void) {
     size_t sig_len = sizeof(G_context.ssh_info.signature);
@@ -61,6 +62,9 @@ static uint16_t init_sign_context(buffer_t *cdata) {
         !buffer_read_bip32_path(cdata, G_context.bip32_path, (size_t) G_context.bip32_path_len) ||
         cdata->offset != cdata->size) {
         return SWO_WRONG_DATA_LENGTH;
+    }
+    if (!ssh_path_is_allowed(G_context.bip32_path, G_context.bip32_path_len)) {
+        return SWO_INCORRECT_DATA;
     }
     G_context.ssh_info.next_chunk = 1;
     G_context.state = SSH_STATE_RECEIVING;

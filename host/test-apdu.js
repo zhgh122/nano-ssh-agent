@@ -2,11 +2,11 @@
 // รัน: node test-apdu.js   (ต้องเปิด Speculos ไว้ที่ SPECULOS_URL)
 const crypto = require('crypto');
 const net = require('net');
-const { encodePath, buildApdu, getPublicKey, sign } = require('./ledger');
+const { SSH_PATH, encodePath, buildApdu, getPublicKey, sign } = require('./ledger');
 
 const SPECULOS_URL = process.env.SPECULOS_URL || 'http://localhost:5000';
 const SPECULOS_APDU_PORT = Number(process.env.SPECULOS_APDU_PORT || 9999);
-const PATH = [44, 1, 0, 0, 0];
+const PATH = SSH_PATH;
 const INS_SIGN_SSH = 0x10;
 
 let failures = 0;
@@ -167,6 +167,25 @@ async function main() {
     check('GET_PUBLIC_KEY trailing byte rejected', r.sw === '6a87', r.sw);
     r = await raw('e1030000');
     check('wrong CLA rejected', r.sw === '6e00', r.sw);
+
+    // --- path ต้องอยู่ใต้ m/44'/1280529224' และ hardened ทุกระดับ ---
+    const foreignPaths = {
+        "old testnet path 44'/1'": [44, 1, 0, 0, 0],
+        "bitcoin 44'/0'": [44, 0, 0, 0, 0],
+        "ethereum 44'/60'": [44, 60, 0, 0, 0],
+        "Ledger SSH agent app 44'/535348'": [44, 0x535348, 0, 0, 0],
+        'prefix only': SSH_PATH.slice(0, 2),
+    };
+    for (const [name, p] of Object.entries(foreignPaths)) {
+        r = await raw(buildApdu(0x05, 0, 0, encodePath(p)));
+        check(`GET_PUBLIC_KEY ${name} refused`, r.sw === '6a80', r.sw);
+        r = await raw(buildApdu(INS_SIGN_SSH, 0, 0x80, encodePath(p)));
+        check(`SIGN_SSH ${name} refused`, r.sw === '6a80', r.sw);
+    }
+    const nonHardened = encodePath(SSH_PATH);
+    nonHardened.writeUInt32BE(0, nonHardened.length - 4);  // ระดับสุดท้ายไม่ hardened
+    r = await raw(buildApdu(0x05, 0, 0, nonHardened));
+    check('GET_PUBLIC_KEY non-hardened level refused', r.sw === '6a80', r.sw);
 
     // --- เซ็น: ลำดับก้อนผิด / ขนาดเกิน ---
     r = await raw(buildApdu(0x05, 0, 0, path));  // ล้าง context

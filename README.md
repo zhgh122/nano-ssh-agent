@@ -20,6 +20,7 @@ Based on the [Ledger C boilerplate](https://github.com/LedgerHQ/app-boilerplate)
 | `host/verify.js` | Verifies a raw ed25519 signature |
 | `host/test-apdu.js` | APDU-level tests against Speculos |
 | `host/test-ssh-login.sh` | End-to-end login test against a throwaway local `sshd` |
+| `host/run-speculos.sh` | Runs Speculos with its ports on `127.0.0.1` only |
 | `tests/standalone/` | Ragger functional tests (all devices) |
 | `APP_SPECIFICATION.md` | APDU protocol |
 
@@ -31,15 +32,35 @@ Inside the `ledger-app-dev-tools` container, with the project mounted on `/app`:
 make BOLOS_SDK=$NANOSP_SDK      # or $NANOX_SDK, $STAX_SDK, $FLEX_SDK, $APEX_P_SDK
 ```
 
+## Derivation path
+
+The key lives at `m/44'/1280529224'/0'/0'/0'` (1280529224 = `0x4C535348` = ASCII "LSSH"),
+hardened at every level (SLIP-10 ed25519 only supports hardened derivation).
+
+- `PATH_APP_LOAD_PARAMS = "44'/1280529224'"` in the `Makefile`: on a real device the OS refuses
+  any derivation outside this prefix, so the app cannot reach keys of Bitcoin, Ethereum or any
+  other wallet app on the same seed.
+- The app checks the same prefix itself (`src/helper/ssh_path.c`), so Speculos (which does not
+  enforce `PATH_APP_LOAD_PARAMS`) behaves the same. Other paths get `6A80`.
+- The coin type is deliberately not `535348'` ("SSH"), which Ledger's SSH/PGP agent app uses:
+  the two apps never share a key.
+- The host uses `SSH_PATH` in `host/ledger.js`.
+
 ## Run on Speculos
 
 ```shell
-speculos build/nanos2/bin/app.elf --model nanosp --display headless
+host/run-speculos.sh                        # nanosp; Ctrl+C to stop
+MODEL=stax ELF=build/stax/bin/app.elf host/run-speculos.sh
 ```
 
-Speculos serves its REST API on port 5000 (`host/ledger.js` uses `SPECULOS_URL`,
-default `http://localhost:5000`). Buttons can be pressed with e.g.
-`curl -XPOST -d '{"action":"press-and-release"}' localhost:5000/button/both`.
+Speculos always binds its servers to `0.0.0.0`, and that can't be changed. The script
+therefore runs it in its own container on the Docker bridge network and publishes the REST API
+(5000) and APDU (9999) ports on `127.0.0.1` only. Do not run Speculos with `--network host`
+or directly on a machine reachable from other hosts: anyone reaching those ports could press
+buttons and get signatures.
+
+`host/ledger.js` uses `SPECULOS_URL` (default `http://localhost:5000`). Buttons can be pressed
+with e.g. `curl -XPOST -d '{"action":"press-and-release"}' localhost:5000/button/both`.
 
 ## Use the agent
 
@@ -71,7 +92,7 @@ Environment variables:
 pip install -r tests/standalone/requirements.txt
 pytest tests/standalone/ --tb=short -v --device nanosp
 
-# Host-side tests against a running Speculos (nanosp)
+# Host-side tests against Speculos (nanosp) started with host/run-speculos.sh
 node host/test-apdu.js
 SSH_AUTH_SOCK=/tmp/ledger-agent.sock host/test-ssh-login.sh   # agent must be running
 ```

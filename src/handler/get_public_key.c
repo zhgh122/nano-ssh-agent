@@ -31,6 +31,7 @@
 #include "types.h"
 #include "sw.h"
 #include "send_response.h"
+#include "ssh_path.h"
 
 int handler_get_public_key(buffer_t *cdata) {
     explicit_bzero(&G_context, sizeof(G_context));
@@ -40,6 +41,10 @@ int handler_get_public_key(buffer_t *cdata) {
         cdata->offset != cdata->size) {
         explicit_bzero(&G_context, sizeof(G_context));
         return io_send_sw(SWO_WRONG_DATA_LENGTH);
+    }
+    if (!ssh_path_is_allowed(G_context.bip32_path, G_context.bip32_path_len)) {
+        explicit_bzero(&G_context, sizeof(G_context));
+        return io_send_sw(SWO_INCORRECT_DATA);
     }
 
     cx_err_t error = bip32_derive_with_seed_get_pubkey_256(HDW_ED25519_SLIP10,

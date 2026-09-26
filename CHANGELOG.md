@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Renamed from Boilerplate to Ledger SSH
 - GET_PUBLIC_KEY returns a 32-byte SLIP-10 ed25519 key; the on-screen confirmation mode was removed
 - Only the ed25519 curve is requested
+- Keys are derived under the app-specific path `m/44'/1280529224'` (all levels hardened) instead of
+  `44'/1'`; `PATH_APP_LOAD_PARAMS` and the app both refuse any other path
+- Speculos is started with `host/run-speculos.sh`, which only exposes its ports on 127.0.0.1
 - SIGN_SSH is a state machine: chunks must be sequential, and every command is refused while
   the approval screen is displayed (defense in depth on top of the SDK reply-pending latch)
 

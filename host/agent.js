@@ -2,10 +2,10 @@
 // โปรโตคอล: https://datatracker.ietf.org/doc/html/draft-miller-ssh-agent
 const net = require('net');
 const fs = require('fs');
-const { TRANSPORT, getPublicKey, sign, close } = require('./ledger');
+const { TRANSPORT, SSH_PATH, getPublicKey, sign, close } = require('./ledger');
 
 const SOCK = process.env.LEDGER_AGENT_SOCK || '/tmp/ledger-agent.sock';
-const PATH = [44, 1, 0, 0, 0];
+const PATH = SSH_PATH;
 const COMMENT = 'ledger';
 
 const SSH_AGENT_FAILURE = 5;

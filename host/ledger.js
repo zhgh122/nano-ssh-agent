@@ -5,6 +5,10 @@ const SPECULOS_URL = process.env.SPECULOS_URL || 'http://localhost:5000';
 // เวลารอหาเครื่องทาง USB (ms) ถ้าไม่มีเครื่องเสียบอยู่จะได้ตอบ failure แทนการค้าง
 const USB_OPEN_TIMEOUT_MS = Number(process.env.LEDGER_USB_TIMEOUT_MS || 5000);
 
+// path เฉพาะของแอป: m/44'/1280529224'/0'/0'/0' (0x4C535348 = "LSSH") ทุกระดับ hardened
+// ต้องตรงกับ PATH_APP_LOAD_PARAMS ใน Makefile
+const SSH_PATH = [44, 0x4c535348, 0, 0, 0];
+
 const INS_GET_PUBLIC_KEY = 0x05;
 const INS_SIGN_SSH = 0x10;
 const CHUNK_SIZE = 255;
@@ -116,12 +120,12 @@ async function sign(path, message) {
     return result;
 }
 
-module.exports = { TRANSPORT, encodePath, buildApdu, exchange, getPublicKey, sign, close };
+module.exports = { TRANSPORT, SSH_PATH, encodePath, buildApdu, exchange, getPublicKey, sign, close };
 
 // ทดสอบด้วยมือ: node ledger.js  (LEDGER_TRANSPORT=usb node ledger.js สำหรับเครื่องจริง)
 if (require.main === module) {
     (async () => {
-        const path = [44, 1, 0, 0, 0];
+        const path = SSH_PATH;
         console.log(`transport: ${TRANSPORT}`);
         console.log('public key:', await getPublicKey(path));
         console.log('signature :', await sign(path, Buffer.from('a'.repeat(300))));
