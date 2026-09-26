@@ -7,16 +7,16 @@
 #   powershell -ExecutionPolicy Bypass -File .\setup-windows.ps1 -Target user@buildhost -Port 2222 -Key $HOME\.ssh\id_rsa
 #
 # Options:
-#   -Target      user@host of the build host (required)
-#   -Port        its SSH port (default 22)
-#   -RemoteDir   repository path on the build host, relative to the home (default nano-ssh-agent)
+#   -Target      user@host of the build host (asked if omitted)
+#   -Port        its SSH port (default 22, asked if omitted)
+#   -RemoteDir   repository path on the build host, relative to the home (default nano-ssh-agent, asked if omitted)
 #   -Key         private key you already use for that host (auto-detected if omitted)
 #   -SkipLoad    do not (re)install the app on the device
 #
 # ASCII only on purpose: Windows PowerShell 5.1 misreads UTF-8 files without BOM.
 
 param(
-    [Parameter(Mandatory = $true)][string]$Target,
+    [string]$Target = "",
     [int]$Port = 22,
     [string]$RemoteDir = "nano-ssh-agent",
     [string]$Key = "",
@@ -24,6 +24,26 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+
+# Ask for what was not given on the command line (e.g. when run with right-click > Run with PowerShell)
+function Ask-Default([string]$prompt, [string]$default) {
+    $answer = Read-Host "$prompt [$default]"
+    if ($answer.Trim() -eq "") { return $default }
+    return $answer.Trim()
+}
+if ($Target -eq "") {
+    Write-Host "Server that holds the build (the Linux machine where you ran make), as user@address."
+    Write-Host "Example: ubuntu@203.0.113.10"
+    $Target = (Read-Host "Server").Trim()
+}
+if ($Target -notmatch '^[^@\s]+@[^@\s]+$') { Write-Host "ERROR: expected user@address, got '$Target'" -ForegroundColor Red; Read-Host "Press Enter to close" | Out-Null; exit 1 }
+if (-not $PSBoundParameters.ContainsKey("Port")) {
+    $portText = Ask-Default "SSH port of that server" "$Port"
+    if (-not [int]::TryParse($portText, [ref]$Port)) { Write-Host "ERROR: invalid port '$portText'" -ForegroundColor Red; Read-Host "Press Enter to close" | Out-Null; exit 1 }
+}
+if (-not $PSBoundParameters.ContainsKey("RemoteDir")) {
+    $RemoteDir = Ask-Default "Project folder on that server, relative to its home" $RemoteDir
+}
 $Pipe = "\\.\pipe\nano-ssh-agent"
 $SpeculosKey = "AAAAC3NzaC1lZDI1NTE5AAAAIAqcocsmbdi1GiH4KgTy+TFtIgQxfaABSCkblCmKfoYR"
 $Dir = Join-Path $HOME "nano-ssh-agent"
@@ -32,7 +52,10 @@ $PubFile = Join-Path $HOME ".ssh\ledger_real.pub"
 $Remote = $Target
 
 function Step($msg) { Write-Host "`n=== $msg ===" -ForegroundColor Cyan }
-function Fail($msg) { Write-Host "ERROR: $msg" -ForegroundColor Red; exit 1 }
+# Keep the window open when started with right-click > Run with PowerShell
+function Wait-Close { Read-Host "`nPress Enter to close" | Out-Null }
+function Fail($msg) { Write-Host "ERROR: $msg" -ForegroundColor Red; Wait-Close; exit 1 }
+trap { Write-Host "ERROR: $($_.Exception.Message)" -ForegroundColor Red; Wait-Close; exit 1 }
 function Pause-For($msg) { Read-Host "$msg, then press Enter" | Out-Null }
 function Check-Exit($what) { if ($LASTEXITCODE -ne 0) { Fail "$what failed (exit $LASTEXITCODE)" } }
 function Pipe-Exists { return ([System.IO.Directory]::GetFiles("\\.\pipe\") -contains $Pipe) }
@@ -53,6 +76,7 @@ if ($missing.Count -gt 0) {
     Write-Host "Install with:  winget install Python.Python.3.12 OpenJS.NodeJS.LTS"
     Write-Host "OpenSSH client: Settings > System > Optional features > OpenSSH Client"
     Write-Host "Then open a NEW PowerShell window and run this script again."
+    Read-Host "`nPress Enter to close" | Out-Null
     exit 1
 }
 
@@ -172,3 +196,4 @@ Write-Host "then in any window:"
 Write-Host "  `$env:SSH_AUTH_SOCK = '$Pipe'"
 Write-Host "  ssh -p $Port -o IdentitiesOnly=yes -i `"$PubFile`" $Remote"
 Write-Host "Your old key is still authorized on the build host: keep it as a backup way in."
+Wait-Close
