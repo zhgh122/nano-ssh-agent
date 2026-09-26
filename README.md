@@ -28,6 +28,7 @@ Based on the [Ledger C boilerplate](https://github.com/LedgerHQ/app-boilerplate)
 | `host/test-ssh-login.sh` | End-to-end login test against a throwaway local `sshd` |
 | `host/run-speculos.sh` | Runs Speculos with its ports on `127.0.0.1` only |
 | `host/setup-windows.ps1` | One-shot Windows setup (fetch, load, agent, authorize, test) |
+| `host/setup-vscode-windows.ps1` | Windows: agent at login + VS Code Remote-SSH, via pop-ups |
 | `host/speculos-test-key.pub` | Public key of the Speculos test seed, used by the tests only |
 | `tests/standalone/` | Ragger functional tests (all devices) |
 | `APP_SPECIFICATION.md` | APDU protocol |
@@ -242,6 +243,16 @@ ssh -o IdentitiesOnly=yes -i $HOME\.ssh\ledger_real.pub user@buildhost
 On Windows the agent uses the named pipe `\\.\pipe\nano-ssh-agent` instead of a Unix socket.
 It does not conflict with the Windows "OpenSSH Authentication Agent" service, which uses
 `\\.\pipe\openssh-ssh-agent`; `SSH_AUTH_SOCK` selects which agent `ssh` talks to.
+
+### VS Code on Windows (no command line)
+
+After `setup-windows.ps1` has run once, download `host/setup-vscode-windows.ps1`, right-click it
+and choose **Run with PowerShell**, then answer the pop-ups (server `user@address`, port, a name).
+It starts the agent in the background (and at every login), points `SSH_AUTH_SOCK` at it, adds the
+server to `~/.ssh/config` with the Ledger key only, and sets Remote-SSH to a 60 s connect timeout
+without agent forwarding. Existing files are backed up and existing settings are kept.
+
+Then in VS Code: Remote Explorer → the server → connect → approve on the device.
 
 ### Troubleshooting
 
