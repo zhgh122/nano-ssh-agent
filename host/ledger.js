@@ -31,9 +31,9 @@ function buildApdu(ins, p1, p2, data) {
 // คำอธิบาย status word ที่เจอบ่อยกับเครื่องจริง
 const STATUS_HINTS = {
     '5515': 'device is locked, unlock it',
-    '6511': 'Ledger SSH app is not open',
-    '6e01': 'Ledger SSH app is not open',
-    '6d02': 'Ledger SSH app is not open',
+    '6511': 'Nano SSH Agent app is not open',
+    '6e01': 'Nano SSH Agent app is not open',
+    '6d02': 'Nano SSH Agent app is not open',
     '6985': 'rejected on device',
     '6901': 'device is busy with another request',
 };

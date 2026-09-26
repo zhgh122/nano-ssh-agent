@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Renamed from Boilerplate to Ledger SSH
+- Renamed from Boilerplate to Nano SSH Agent
 - GET_PUBLIC_KEY returns a 32-byte SLIP-10 ed25519 key; the on-screen confirmation mode was removed
 - Only the ed25519 curve is requested
 - Keys are derived under the app-specific path `m/44'/1280529224'` (all levels hardened) instead of

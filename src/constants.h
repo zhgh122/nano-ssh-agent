@@ -1,7 +1,7 @@
 #pragma once
 
 /**
- * Instruction class of the Ledger SSH application.
+ * Instruction class of the Nano SSH Agent application.
  */
 #define CLA 0xE0
 

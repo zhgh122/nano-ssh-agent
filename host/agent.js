@@ -6,7 +6,7 @@ const { TRANSPORT, SSH_PATH, getPublicKey, sign, close } = require('./ledger');
 
 // Windows: OpenSSH คุยกับ agent ผ่าน named pipe, ระบบอื่นใช้ Unix socket
 const IS_WINDOWS = process.platform === 'win32';
-const DEFAULT_SOCK = IS_WINDOWS ? '\\\\.\\pipe\\ledger-ssh-agent' : '/tmp/ledger-agent.sock';
+const DEFAULT_SOCK = IS_WINDOWS ? '\\\\.\\pipe\\nano-ssh-agent' : '/tmp/nano-ssh-agent.sock';
 const SOCK = process.env.LEDGER_AGENT_SOCK || DEFAULT_SOCK;
 const PATH = SSH_PATH;
 const COMMENT = 'ledger';

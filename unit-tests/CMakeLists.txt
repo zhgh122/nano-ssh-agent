@@ -30,7 +30,7 @@ set(UT_INCLUDE_DIRS
 )
 
 set(UT_COMPILE_DEFS
-    APPNAME="Ledger SSH"
+    APPNAME="Nano SSH Agent"
     APPVERSION="9.9.9"
 )
 

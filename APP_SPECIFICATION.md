@@ -2,7 +2,7 @@
 
 ## About
 
-This documentation describes the APDU interface of the Ledger SSH application.
+This documentation describes the APDU interface of the Nano SSH Agent application.
 
 The application covers the following functionalities:
 

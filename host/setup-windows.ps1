@@ -1,4 +1,4 @@
-# One-shot setup of Ledger SSH on Windows: fetch the build + host files from the
+# One-shot setup of Nano SSH Agent on Windows: fetch the build + host files from the
 # Linux machine that built them (the "build host"), load the app on the Nano S Plus,
 # start the agent, authorize the device key on that host and test the login.
 #
@@ -9,7 +9,7 @@
 # Options:
 #   -Target      user@host of the build host (required)
 #   -Port        its SSH port (default 22)
-#   -RemoteDir   repository path on the build host, relative to the home (default ledger-ssh)
+#   -RemoteDir   repository path on the build host, relative to the home (default nano-ssh-agent)
 #   -Key         private key you already use for that host (auto-detected if omitted)
 #   -SkipLoad    do not (re)install the app on the device
 #
@@ -18,15 +18,15 @@
 param(
     [Parameter(Mandatory = $true)][string]$Target,
     [int]$Port = 22,
-    [string]$RemoteDir = "ledger-ssh",
+    [string]$RemoteDir = "nano-ssh-agent",
     [string]$Key = "",
     [switch]$SkipLoad
 )
 
 $ErrorActionPreference = "Stop"
-$Pipe = "\\.\pipe\ledger-ssh-agent"
+$Pipe = "\\.\pipe\nano-ssh-agent"
 $SpeculosKey = "AAAAC3NzaC1lZDI1NTE5AAAAIAqcocsmbdi1GiH4KgTy+TFtIgQxfaABSCkblCmKfoYR"
-$Dir = Join-Path $HOME "ledger-ssh"
+$Dir = Join-Path $HOME "nano-ssh-agent"
 $HostDir = Join-Path $Dir "host"
 $PubFile = Join-Path $HOME ".ssh\ledger_real.pub"
 $Remote = $Target
@@ -85,7 +85,7 @@ Move-Item -Force -Path (Join-Path $Dir "*.js"), (Join-Path $Dir "package*.json")
 
 # ---------------------------------------------------------------- load the app
 if (-not $SkipLoad) {
-    Step "Installing the Ledger SSH app on the device"
+    Step "Installing the Nano SSH Agent app on the device"
     Write-Host "Quit Ledger Live completely (also from the system tray)."
     Pause-For "Plug in the Nano S Plus, unlock it and stay on the dashboard"
     $venv = Join-Path $Dir "ledger-venv"
@@ -110,7 +110,7 @@ Pop-Location
 if ($npmExit -ne 0) { Fail "npm install failed (exit $npmExit)" }
 
 Step "Starting the agent"
-Pause-For "Open the 'Ledger SSH' app on the device"
+Pause-For "Open the 'Nano SSH Agent' app on the device"
 if (Pipe-Exists) {
     Write-Host "An agent is already listening on $Pipe, reusing it."
 } else {
@@ -126,7 +126,7 @@ if (Pipe-Exists) {
 Step "Reading the public key from the device"
 $env:SSH_AUTH_SOCK = $Pipe
 $pubLine = (& ssh-add -L | Select-Object -First 1)
-Check-Exit "ssh-add -L (is the Ledger SSH app open and the device unlocked?)"
+Check-Exit "ssh-add -L (is the Nano SSH Agent app open and the device unlocked?)"
 Remove-Item Env:SSH_AUTH_SOCK
 if ($pubLine -notmatch '^ssh-ed25519 [A-Za-z0-9+/=]+ ledger$') { Fail "unexpected key: $pubLine" }
 if ($pubLine -like "*$SpeculosKey*") { Fail "this is the Speculos test key, not your device" }

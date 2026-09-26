@@ -1,4 +1,4 @@
-# Ledger SSH
+# nano-ssh-agent
 
 A Ledger device application plus a small Node.js `ssh-agent` that keeps an SSH ed25519 key
 on the device. Every SSH login must be approved on the device screen.
@@ -75,8 +75,8 @@ with e.g. `curl -XPOST -d '{"action":"press-and-release"}' localhost:5000/button
 ```shell
 cd host
 npm install                                 # only needed for USB (hw-transport-node-hid)
-node agent.js                               # Speculos; listens on /tmp/ledger-agent.sock
-export SSH_AUTH_SOCK=/tmp/ledger-agent.sock
+node agent.js                               # Speculos; listens on /tmp/nano-ssh-agent.sock
+export SSH_AUTH_SOCK=/tmp/nano-ssh-agent.sock
 ssh-add -L                                  # prints the ssh-ed25519 public key
 ssh user@server                             # approve "Sign SSH login?" on the device
 ```
@@ -91,7 +91,7 @@ Environment variables:
 | `LEDGER_TRANSPORT` | `speculos` | `speculos` (REST API) or `usb` (real device over HID) |
 | `SPECULOS_URL` | `http://localhost:5000` | Speculos REST API |
 | `LEDGER_USB_TIMEOUT_MS` | `5000` | How long to look for a USB device before answering failure |
-| `LEDGER_AGENT_SOCK` | `/tmp/ledger-agent.sock` | Agent socket path (created with mode 0600) |
+| `LEDGER_AGENT_SOCK` | `/tmp/nano-ssh-agent.sock` | Agent socket path (created with mode 0600) |
 
 ## Tests
 
@@ -102,7 +102,7 @@ pytest tests/standalone/ --tb=short -v --device nanosp
 
 # Host-side tests against Speculos (nanosp) started with host/run-speculos.sh
 node host/test-apdu.js
-SSH_AUTH_SOCK=/tmp/ledger-agent.sock host/test-ssh-login.sh   # agent must be running
+SSH_AUTH_SOCK=/tmp/nano-ssh-agent.sock host/test-ssh-login.sh   # agent must be running
 ```
 
 `test-ssh-login.sh` starts `sshd` as the current user on `127.0.0.1` with a temporary
@@ -166,7 +166,7 @@ pip install ledgerblue
 python3 -m ledgerblue.runScript --scp --fileName build/nanos2/bin/app.apdu --elfFile build/nanos2/bin/app.elf
 ```
 
-On the device: accept "Allow unsafe manager", review the install request for **Ledger SSH**, then
+On the device: accept "Allow unsafe manager", review the install request for **Nano SSH Agent**, then
 enter your PIN. The app then appears on the dashboard.
 
 To remove it later: `make delete BOLOS_SDK=$NANOSP_SDK` (in the container).
@@ -174,14 +174,14 @@ Sideloaded apps must be loaded again after a device OS update.
 
 ### 5. Use it
 
-Open **Ledger SSH** on the device ("Ledger SSH / app is ready"), then on the computer:
+Open **Nano SSH Agent** on the device ("Nano SSH Agent / app is ready"), then on the computer:
 
 ```shell
 cd host
 npm install
 LEDGER_TRANSPORT=usb node agent.js
 # in another terminal
-export SSH_AUTH_SOCK=/tmp/ledger-agent.sock
+export SSH_AUTH_SOCK=/tmp/nano-ssh-agent.sock
 ssh-add -L > ~/.ssh/ledger_real.pub         # your real public key
 ssh-copy-id -f -i ~/.ssh/ledger_real.pub user@server   # or append it to authorized_keys manually
 ssh user@server                             # approve "Sign SSH login?" on the device
@@ -196,7 +196,7 @@ Quickest: `host/setup-windows.ps1` does all the steps below (fetch, load, npm in
 agent, authorize the key on the build host without touching existing keys, test the login):
 
 ```powershell
-scp user@buildhost:ledger-ssh/host/setup-windows.ps1 $HOME\
+scp user@buildhost:nano-ssh-agent/host/setup-windows.ps1 $HOME\
 powershell -ExecutionPolicy Bypass -File $HOME\setup-windows.ps1 -Target user@buildhost
 # options: -Port 2222  -Key $HOME\.ssh\id_rsa  -RemoteDir path/to/repo  -SkipLoad
 ```
@@ -211,10 +211,10 @@ In PowerShell **on the Windows PC** (replace `user@buildhost` with the machine h
 SSH server is not on port 22, add `-P <port>` to `scp` and `-p <port>` to `ssh`):
 
 ```powershell
-mkdir ledger-ssh; cd ledger-ssh
-scp "user@buildhost:ledger-ssh/build/nanos2/bin/app.*" .
+mkdir nano-ssh-agent; cd nano-ssh-agent
+scp "user@buildhost:nano-ssh-agent/build/nanos2/bin/app.*" .
 mkdir host
-scp "user@buildhost:ledger-ssh/host/*.js" "user@buildhost:ledger-ssh/host/package*.json" host/
+scp "user@buildhost:nano-ssh-agent/host/*.js" "user@buildhost:nano-ssh-agent/host/package*.json" host/
 
 # load the app (device unlocked, on the dashboard, Ledger Live closed)
 py -m venv ledger-venv
@@ -223,23 +223,23 @@ Set-ExecutionPolicy -Scope Process Bypass   # allow the venv activation script
 pip install ledgerblue
 python -m ledgerblue.runScript --scp --fileName app.apdu --elfFile app.elf
 
-# agent (open the Ledger SSH app on the device first)
+# agent (open the Nano SSH Agent app on the device first)
 cd host
 npm install
 $env:LEDGER_TRANSPORT = "usb"
-node agent.js                               # listens on \\.\pipe\ledger-ssh-agent
+node agent.js                               # listens on \\.\pipe\nano-ssh-agent
 ```
 
 In a second PowerShell window:
 
 ```powershell
-$env:SSH_AUTH_SOCK = "\\.\pipe\ledger-ssh-agent"
+$env:SSH_AUTH_SOCK = "\\.\pipe\nano-ssh-agent"
 ssh-add -L | Out-File -Encoding ascii $HOME\.ssh\ledger_real.pub
 Get-Content $HOME\.ssh\ledger_real.pub | ssh user@buildhost "cat >> ~/.ssh/authorized_keys"
 ssh -o IdentitiesOnly=yes -i $HOME\.ssh\ledger_real.pub user@buildhost
 ```
 
-On Windows the agent uses the named pipe `\\.\pipe\ledger-ssh-agent` instead of a Unix socket.
+On Windows the agent uses the named pipe `\\.\pipe\nano-ssh-agent` instead of a Unix socket.
 It does not conflict with the Windows "OpenSSH Authentication Agent" service, which uses
 `\\.\pipe\openssh-ssh-agent`; `SSH_AUTH_SOCK` selects which agent `ssh` talks to.
 
@@ -249,7 +249,7 @@ It does not conflict with the Windows "OpenSSH Authentication Agent" service, wh
 | --- | --- |
 | `No Ledger device found (timeout)` | Not plugged in, Ledger Live still open, or missing udev rules |
 | `Ledger error: 5515 (device is locked...)` | Unlock the device |
-| `6511`, `6e01`, `6d02` (`app is not open`) | Open the Ledger SSH app on the device |
+| `6511`, `6e01`, `6d02` (`app is not open`) | Open the Nano SSH Agent app on the device |
 | `6985 (rejected on device)` | Rejected on the device |
 | `6901 (device is busy...)` | Another program is talking to the device |
 

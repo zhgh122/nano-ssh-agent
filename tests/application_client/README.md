@@ -1,6 +1,6 @@
 # Application Client for Functional Tests
 
-This minimalist Python client is used in the functional tests of the Ledger SSH application.  
+This minimalist Python client is used in the functional tests of the Nano SSH Agent application.  
 It serves as a communication layer between the test framework (`pytest`) and
 the device-under-test (Ledger app), sending commands and parsing responses.
 

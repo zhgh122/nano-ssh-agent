@@ -151,7 +151,7 @@ async function main() {
     let r = await raw(buildApdu(0x03, 0, 0, Buffer.alloc(0)));
     check('GET_VERSION', r.sw === '9000' && r.data === '000100', r.data);
     r = await raw(buildApdu(0x04, 0, 0, Buffer.alloc(0)));
-    check('GET_APP_NAME', r.sw === '9000' && Buffer.from(r.data, 'hex').toString() === 'Ledger SSH');
+    check('GET_APP_NAME', r.sw === '9000' && Buffer.from(r.data, 'hex').toString() === 'Nano SSH Agent');
 
     const pub = await getPublicKey(PATH);
     check('GET_PUBLIC_KEY 32 bytes', pub.length === 64, pub);
@@ -173,7 +173,7 @@ async function main() {
         "old testnet path 44'/1'": [44, 1, 0, 0, 0],
         "bitcoin 44'/0'": [44, 0, 0, 0, 0],
         "ethereum 44'/60'": [44, 60, 0, 0, 0],
-        "Ledger SSH agent app 44'/535348'": [44, 0x535348, 0, 0, 0],
+        "Ledger's SSH/PGP agent app 44'/535348'": [44, 0x535348, 0, 0, 0],
         'prefix only': SSH_PATH.slice(0, 2),
     };
     for (const [name, p] of Object.entries(foreignPaths)) {

@@ -1,5 +1,5 @@
 # ****************************************************************************
-#    Ledger SSH (based on Ledger App Boilerplate)
+#    Nano SSH Agent (based on Ledger App Boilerplate)
 #    (c) 2023 Ledger SAS.
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,7 +25,7 @@ include $(BOLOS_SDK)/Makefile.target
 #        Mandatory configuration       #
 ########################################
 # Application name
-APPNAME = "Ledger SSH"
+APPNAME = "Nano SSH Agent"
 
 # Application version
 APPVERSION_M = 0
@@ -65,7 +65,7 @@ CURVE_APP_LOAD_PARAMS = ed25519
 # and SLIP-0044 standards.
 # If your app needs it, you can specify multiple path by using:
 # `PATH_APP_LOAD_PARAMS = "44'/1'" "45'/1'"`
-# Ledger SSH may only derive under m/44'/1280529224' (0x4C535348 = "LSSH"), so it cannot
+# Nano SSH Agent may only derive under m/44'/1280529224' (0x4C535348 = "LSSH"), so it cannot
 # reach keys of any crypto wallet app. Keep in sync with SSH_PATH_* in src/constants.h.
 PATH_APP_LOAD_PARAMS = "44'/1280529224'"
 

@@ -1,8 +1,8 @@
 {
-  "name": "ledger-ssh-host",
+  "name": "nano-ssh-agent-host",
   "version": "0.1.0",
   "private": true,
-  "description": "ssh-agent backed by the Ledger SSH device app",
+  "description": "ssh-agent backed by the Nano SSH Agent device app",
   "main": "agent.js",
   "scripts": {
     "agent": "node agent.js",

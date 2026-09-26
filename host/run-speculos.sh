@@ -21,12 +21,12 @@ if [ ! -f "$ROOT/$ELF" ]; then
     exit 1
 fi
 
-if docker ps -a --format '{{.Names}}' | grep -qx ledger-ssh-speculos; then
-    echo "Speculos (ledger-ssh-speculos) ยังรันอยู่: ปิดก่อนด้วย docker stop ledger-ssh-speculos" >&2
+if docker ps -a --format '{{.Names}}' | grep -qx nano-ssh-agent-speculos; then
+    echo "Speculos (nano-ssh-agent-speculos) ยังรันอยู่: ปิดก่อนด้วย docker stop nano-ssh-agent-speculos" >&2
     exit 1
 fi
 
-exec docker run --rm --init --name ledger-ssh-speculos \
+exec docker run --rm --init --name nano-ssh-agent-speculos \
     -p "127.0.0.1:${API_PORT}:5000" \
     -p "127.0.0.1:${APDU_PORT}:9999" \
     -v "$ROOT:/app:ro" -w /app \

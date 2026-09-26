@@ -2,7 +2,7 @@
 # ทดสอบ ssh login ผ่าน ledger agent กับ sshd ชั่วคราวที่ 127.0.0.1 เท่านั้น
 # - ไม่แตะ ~/.ssh/authorized_keys: key อยู่ในไดเรกทอรีชั่วคราว
 # - ปิด sshd และลบไดเรกทอรีทิ้งเสมอ (trap EXIT) แม้ทดสอบล้มเหลว
-# ต้องรัน agent.js อยู่ และ export SSH_AUTH_SOCK=/tmp/ledger-agent.sock ไว้ก่อน
+# ต้องรัน agent.js อยู่ และ export SSH_AUTH_SOCK=/tmp/nano-ssh-agent.sock ไว้ก่อน
 set -euo pipefail
 
 PORT=${PORT:-22022}
