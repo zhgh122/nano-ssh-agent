@@ -14,7 +14,7 @@ Based on the [Ledger C boilerplate](https://github.com/LedgerHQ/app-boilerplate)
 | Path | What it is |
 | --- | --- |
 | `src/` | Device app (C). `handler/sign_ssh.c` is the signing flow. |
-| `host/ledger.js` | APDU helpers: `getPublicKey`, `sign` (Speculos transport) |
+| `host/ledger.js` | APDU helpers: `getPublicKey`, `sign` over Speculos or USB (`LEDGER_TRANSPORT`) |
 | `host/agent.js` | `ssh-agent` protocol server on a Unix socket |
 | `host/pubkey.js` | Turns a raw public key (hex) into an `ssh-ed25519` line |
 | `host/verify.js` | Verifies a raw ed25519 signature |
@@ -45,7 +45,8 @@ default `http://localhost:5000`). Buttons can be pressed with e.g.
 
 ```shell
 cd host
-node agent.js                               # listens on /tmp/ledger-agent.sock
+npm install                                 # only needed for USB (hw-transport-node-hid)
+node agent.js                               # Speculos; listens on /tmp/ledger-agent.sock
 export SSH_AUTH_SOCK=/tmp/ledger-agent.sock
 ssh-add -L                                  # prints the ssh-ed25519 public key
 ssh user@server                             # approve "Sign SSH login?" on the device
@@ -53,6 +54,15 @@ ssh user@server                             # approve "Sign SSH login?" on the d
 
 The agent answers `SSH_AGENTC_REQUEST_IDENTITIES` (11) and `SSH_AGENTC_SIGN_REQUEST` (13);
 every other request gets `SSH_AGENT_FAILURE` (5).
+
+Environment variables:
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `LEDGER_TRANSPORT` | `speculos` | `speculos` (REST API) or `usb` (real device over HID) |
+| `SPECULOS_URL` | `http://localhost:5000` | Speculos REST API |
+| `LEDGER_USB_TIMEOUT_MS` | `5000` | How long to look for a USB device before answering failure |
+| `LEDGER_AGENT_SOCK` | `/tmp/ledger-agent.sock` | Agent socket path (created with mode 0600) |
 
 ## Tests
 
@@ -69,3 +79,95 @@ SSH_AUTH_SOCK=/tmp/ledger-agent.sock host/test-ssh-login.sh   # agent must be ru
 `test-ssh-login.sh` starts `sshd` as the current user on `127.0.0.1` with a temporary
 `authorized_keys`, and always stops it and deletes its files on exit. It never touches
 `~/.ssh/authorized_keys`.
+
+## Install on a real Nano S Plus
+
+> [!IMPORTANT]
+> - `host/ledger.pub` is the **Speculos** key (public test seed). Never authorize it on a real server.
+>   Your real key comes from your device seed and is different.
+> - The app is not signed by Ledger, so it is sideloaded. The device will warn that the app is
+>   not genuine; this is expected for your own build.
+> - Plug the device into **your own computer** and run the agent there. To use the key on hosts
+>   you are logged into, use agent forwarding (`ssh -A`): every signature still needs a button
+>   press on the device.
+
+### 1. Prepare the device
+
+1. In Ledger Live, update the Nano S Plus to the latest OS. The app is built with SDK API level 26;
+   if the device OS does not match, loading fails with an API level error. In that case, update
+   the device or build with the SDK matching its OS.
+2. Quit Ledger Live: it keeps the USB device busy.
+3. Plug the device in, unlock it and stay on the dashboard (no app open).
+
+### 2. USB permissions (Linux host)
+
+```shell
+sudo tee /etc/udev/rules.d/20-ledger.rules <<'RULES'
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="2c97", MODE="0660", TAG+="uaccess", TAG+="udev-acl"
+KERNEL=="hidraw*", ATTRS{idVendor}=="2c97", MODE="0660", TAG+="uaccess", TAG+="udev-acl"
+RULES
+sudo udevadm control --reload-rules && sudo udevadm trigger
+```
+
+Unplug and replug the device afterwards. macOS needs no rules.
+
+### 3. Build a release binary
+
+Build without `DEBUG=1`, in the `ledger-app-dev-tools` container:
+
+```shell
+make clean
+make BOLOS_SDK=$NANOSP_SDK
+```
+
+### 4. Load the app
+
+With the container started with USB access
+(`docker run --rm -it --privileged -v /dev/bus/usb:/dev/bus/usb -v "$(pwd):/app" ghcr.io/ledgerhq/ledger-app-builder/ledger-app-dev-tools:latest`):
+
+```shell
+make load BOLOS_SDK=$NANOSP_SDK
+```
+
+Or from the host with [ledgerblue](https://github.com/LedgerHQ/blue-loader-python) in a Python virtualenv:
+
+```shell
+python3 -m venv ~/ledger-venv && . ~/ledger-venv/bin/activate
+pip install ledgerblue
+python3 -m ledgerblue.runScript --scp --fileName build/nanos2/bin/app.apdu --elfFile build/nanos2/bin/app.elf
+```
+
+On the device: accept "Allow unsafe manager", review the install request for **Ledger SSH**, then
+enter your PIN. The app then appears on the dashboard.
+
+To remove it later: `make delete BOLOS_SDK=$NANOSP_SDK` (in the container).
+Sideloaded apps must be loaded again after a device OS update.
+
+### 5. Use it
+
+Open **Ledger SSH** on the device ("Ledger SSH / app is ready"), then on the computer:
+
+```shell
+cd host
+npm install
+LEDGER_TRANSPORT=usb node agent.js
+# in another terminal
+export SSH_AUTH_SOCK=/tmp/ledger-agent.sock
+ssh-add -L > ~/.ssh/ledger_real.pub         # your real public key
+ssh-copy-id -f -i ~/.ssh/ledger_real.pub user@server   # or append it to authorized_keys manually
+ssh user@server                             # approve "Sign SSH login?" on the device
+```
+
+Quick check without SSH: `LEDGER_TRANSPORT=usb node ledger.js` prints the public key, then asks
+the device to sign a test message.
+
+### Troubleshooting
+
+| Agent log / error | Cause |
+| --- | --- |
+| `No Ledger device found (timeout)` | Not plugged in, Ledger Live still open, or missing udev rules |
+| `Ledger error: 5515 (device is locked...)` | Unlock the device |
+| `6511`, `6e01`, `6d02` (`app is not open`) | Open the Ledger SSH app on the device |
+| `6985 (rejected on device)` | Rejected on the device |
+| `6901 (device is busy...)` | Another program is talking to the device |
+

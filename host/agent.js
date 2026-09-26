@@ -2,7 +2,7 @@
 // โปรโตคอล: https://datatracker.ietf.org/doc/html/draft-miller-ssh-agent
 const net = require('net');
 const fs = require('fs');
-const { getPublicKey, sign } = require('./ledger');
+const { TRANSPORT, getPublicKey, sign, close } = require('./ledger');
 
 const SOCK = process.env.LEDGER_AGENT_SOCK || '/tmp/ledger-agent.sock';
 const PATH = [44, 1, 0, 0, 0];
@@ -44,14 +44,11 @@ function withDevice(fn) {
     return run;
 }
 
-let cachedKeyBlob = null;
+// ถามเครื่องทุกครั้ง ไม่ cache: เครื่องจริงอาจถูกถอด/เปลี่ยน/ล็อกได้ตลอด
 async function keyBlob() {
-    if (!cachedKeyBlob) {
-        const pub = Buffer.from(await withDevice(() => getPublicKey(PATH)), 'hex');
-        if (pub.length !== 32) throw new Error(`unexpected public key length ${pub.length}`);
-        cachedKeyBlob = Buffer.concat([sshString(Buffer.from('ssh-ed25519')), sshString(pub)]);
-    }
-    return cachedKeyBlob;
+    const pub = Buffer.from(await withDevice(() => getPublicKey(PATH)), 'hex');
+    if (pub.length !== 32) throw new Error(`unexpected public key length ${pub.length}`);
+    return Buffer.concat([sshString(Buffer.from('ssh-ed25519')), sshString(pub)]);
 }
 
 async function handleIdentities() {
@@ -128,6 +125,15 @@ const server = net.createServer(onConnection);
 const oldUmask = process.umask(0o177);          // ให้ socket เป็น 0600 ตั้งแต่สร้าง
 server.listen(SOCK, () => {
     process.umask(oldUmask);
-    console.log('agent รออยู่ที่', SOCK);
+    console.log(`agent รออยู่ที่ ${SOCK} (transport: ${TRANSPORT})`);
     console.log(`ใช้งาน: export SSH_AUTH_SOCK=${SOCK}`);
 });
+
+async function shutdown() {
+    server.close();
+    if (fs.existsSync(SOCK)) fs.unlinkSync(SOCK);
+    await close();
+    process.exit(0);
+}
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);
