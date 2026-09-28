@@ -1,0 +1,35 @@
+[hidden] { display: none !important; }
+:root {
+  --bg: #f6f7f9; --card: #fff; --text: #1d2330; --muted: #6b7280; --border: #e3e6eb;
+  --ok: #16a34a; --warn: #d97706; --bad: #dc2626; --accent: #2563eb; --banner: #fff4d6;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #111418; --card: #1a1f26; --text: #e6e9ee; --muted: #9aa3ad; --border: #2a313a;
+          --banner: #3a2f10; --accent: #60a5fa; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; font: 15px/1.5 system-ui, -apple-system, "Segoe UI", "Noto Sans Thai", sans-serif;
+       background: var(--bg); color: var(--text); }
+header { display: flex; align-items: center; justify-content: space-between; gap: 12px;
+         padding: 14px 20px; border-bottom: 1px solid var(--border); background: var(--card); }
+h1 { font-size: 18px; margin: 0; }
+h2 { font-size: 15px; margin: 0 0 12px; }
+main { max-width: 880px; margin: 0 auto; padding: 20px 16px 40px; display: grid; gap: 16px; }
+.card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
+.banner { background: var(--banner); border: 1px solid var(--warn); border-radius: 10px; padding: 14px 18px;
+          display: grid; gap: 4px; }
+.notice { background: var(--card); border: 1px solid var(--bad); border-radius: 10px; padding: 12px 16px; margin: 0; }
+.status-grid { display: grid; grid-template-columns: max-content 1fr; gap: 8px 18px; margin: 0; }
+.status-grid dt { color: var(--muted); }
+.status-grid dd { margin: 0; display: flex; align-items: center; gap: 8px; min-width: 0; }
+code { font: 13px ui-monospace, SFMono-Regular, Consolas, monospace; overflow-wrap: anywhere; }
+.dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); flex: none; }
+.dot.ok { background: var(--ok); } .dot.warn { background: var(--warn); } .dot.bad { background: var(--bad); }
+.pill { font-size: 12px; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--border); }
+.pill.on { color: var(--ok); border-color: var(--ok); } .pill.off { color: var(--muted); }
+.error { color: var(--bad); margin: 10px 0 0; }
+button { font: inherit; padding: 6px 14px; border-radius: 8px; border: 1px solid var(--border);
+         background: var(--card); color: var(--text); cursor: pointer; }
+button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+button:disabled { opacity: .5; cursor: default; }

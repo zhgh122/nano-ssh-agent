@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nano SSH Agent</title>
+<link rel="stylesheet" href="style.css">
+<script src="app.js" defer></script>
+</head>
+<body>
+<header>
+  <h1>Nano SSH Agent</h1>
+  <span id="conn" class="pill off">กำลังเชื่อมต่อ...</span>
+</header>
+
+<main>
+  <p id="no-token" class="notice" hidden>
+    ไม่พบ token: เปิดลิงก์ที่ dashboard พิมพ์ออกมาทั้งบรรทัด (ส่วนที่อยู่หลัง <code>#token=</code>)
+  </p>
+
+  <section id="pending" class="banner" hidden>
+    <strong>รอกด Approve หรือ Reject บน Ledger</strong>
+    <span id="pending-since"></span>
+    <small>กด Approve เฉพาะเมื่อคุณเพิ่งสั่งเชื่อมต่อเอง ถ้าไม่ได้สั่ง ให้กด Reject</small>
+  </section>
+
+  <section class="card" id="status">
+    <h2>สถานะ</h2>
+    <dl class="status-grid">
+      <dt>Agent</dt><dd><span id="st-agent" class="dot"></span><span id="st-agent-text">-</span></dd>
+      <dt>Socket</dt><dd><code id="st-socket">-</code></dd>
+      <dt>การเชื่อมต่อ</dt><dd id="st-transport">-</dd>
+      <dt>Ledger</dt><dd><span id="st-device" class="dot"></span><span id="st-device-text">-</span></dd>
+      <dt>แอปบนเครื่อง</dt><dd><span id="st-app" class="dot"></span><span id="st-app-text">-</span></dd>
+    </dl>
+    <p id="st-error" class="error" hidden></p>
+  </section>
+</main>
+</body>
+</html>

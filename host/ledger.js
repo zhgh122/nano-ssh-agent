@@ -9,6 +9,9 @@ const USB_OPEN_TIMEOUT_MS = Number(process.env.LEDGER_USB_TIMEOUT_MS || 5000);
 // ต้องตรงกับ PATH_APP_LOAD_PARAMS ใน Makefile
 const SSH_PATH = [44, 0x4c535348, 0, 0, 0];
 
+// ชื่อแอปบนเครื่อง (APPNAME ใน Makefile)
+const APP_NAME = 'Nano SSH Agent';
+
 const INS_GET_PUBLIC_KEY = 0x05;
 const INS_SIGN_SSH = 0x10;
 const CHUNK_SIZE = 255;
@@ -66,7 +69,8 @@ async function usbExchange(apduHex) {
     }
 }
 
-async function exchange(apduHex) {
+// ส่ง APDU แล้วคืน { status, data } เป็น hex โดยไม่โยน error เมื่อ status ไม่ใช่ 9000
+async function exchangeRaw(apduHex) {
     let reply;
     if (TRANSPORT === 'usb') {
         reply = await usbExchange(apduHex);
@@ -75,14 +79,53 @@ async function exchange(apduHex) {
     } else {
         throw new Error(`unknown LEDGER_TRANSPORT "${TRANSPORT}" (use speculos or usb)`);
     }
-    const status = reply.slice(-4);
-    const data = reply.slice(0, -4);
+    return { status: reply.slice(-4), data: reply.slice(0, -4) };
+}
 
+async function exchange(apduHex) {
+    const { status, data } = await exchangeRaw(apduHex);
     if (status !== '9000') {
         const hint = STATUS_HINTS[status];
-        throw new Error(`Ledger error: ${status}${hint ? ` (${hint})` : ''}`);
+        const err = new Error(`Ledger error: ${status}${hint ? ` (${hint})` : ''}`);
+        err.statusWord = status;
+        throw err;
     }
     return data;
+}
+
+// มีเครื่องให้คุยไหม (ไม่ส่ง APDU): USB ดูรายการอุปกรณ์, Speculos ลองเรียก REST API
+async function deviceConnected() {
+    if (TRANSPORT === 'usb') {
+        if (hidTransport) return true;
+        const TransportNodeHid = require('@ledgerhq/hw-transport-node-hid').default;
+        return (await TransportNodeHid.list()).length > 0;
+    }
+    if (TRANSPORT === 'speculos') {
+        try {
+            const res = await fetch(`${SPECULOS_URL}/events?currentscreenonly=true`,
+                { signal: AbortSignal.timeout(2000) });
+            return res.ok;
+        } catch {
+            return false;
+        }
+    }
+    return false;
+}
+
+// ถาม OS ของเครื่องว่าตอนนี้เปิดแอปอะไรอยู่ (CLA B0 ตอบได้ทั้งในแอปและที่ dashboard)
+// คืน { status, name, version }: name เป็น "BOLOS" ถ้าอยู่หน้า dashboard ของเครื่อง
+async function getAppAndVersion() {
+    const { status, data } = await exchangeRaw('b0010000');
+    if (status !== '9000') return { status, name: null, version: null };
+    const buf = Buffer.from(data, 'hex');
+    // format_id (1) | name_len (1) | name | version_len (1) | version | ...
+    let o = 1;
+    const nameLen = buf[o++];
+    const name = buf.subarray(o, o + nameLen).toString('ascii');
+    o += nameLen;
+    const verLen = buf[o++];
+    const version = buf.subarray(o, o + verLen).toString('ascii');
+    return { status, name, version };
 }
 
 // ปิดการเชื่อมต่อ USB (ถ้ามี) ให้ process จบได้
@@ -120,7 +163,10 @@ async function sign(path, message) {
     return result;
 }
 
-module.exports = { TRANSPORT, SSH_PATH, encodePath, buildApdu, exchange, getPublicKey, sign, close };
+module.exports = {
+    TRANSPORT, SSH_PATH, APP_NAME, encodePath, buildApdu, exchange, exchangeRaw,
+    deviceConnected, getAppAndVersion, getPublicKey, sign, close,
+};
 
 // ทดสอบด้วยมือ: node ledger.js  (LEDGER_TRANSPORT=usb node ledger.js สำหรับเครื่องจริง)
 if (require.main === module) {

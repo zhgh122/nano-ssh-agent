@@ -1,0 +1,11 @@
+{
+  "name": "nano-ssh-agent-dashboard",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local dashboard for nano-ssh-agent (web UI + optional Electron wrapper)",
+  "scripts": {
+    "start": "node cli.js",
+    "test": "node --test test/*.test.js"
+  },
+  "license": "Apache-2.0"
+}
