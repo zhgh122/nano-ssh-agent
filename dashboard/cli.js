@@ -9,12 +9,12 @@ const port = portArg >= 0 ? Number(args[portArg + 1]) : Number(process.env.DASHB
 startBackend({ port, startAgent: !args.includes('--no-agent'), log: (m) => console.log(m) })
     .then((backend) => {
         console.log(`dashboard: ${backend.url}`);
-        console.log('เปิดลิงก์นี้ทั้งบรรทัด (รวม #token) ห้ามแชร์ลิงก์นี้ให้คนอื่น');
+        console.log('Open this whole link (including #token). Do not share it.');
         const shutdown = async () => { await backend.close(); process.exit(0); };
         process.on('SIGINT', shutdown);
         process.on('SIGTERM', shutdown);
     })
     .catch((err) => {
-        console.error(`เปิด dashboard ไม่ได้: ${err.message}`);
+        console.error(`Cannot start the dashboard: ${err.message}`);
         process.exit(1);
     });

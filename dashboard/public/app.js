@@ -42,21 +42,21 @@ function el(tag, text, className) {
 
 // คำอธิบายคำขอเซ็น (ข้อความล้วน ไม่ใช้ innerHTML)
 function describeRequest(r) {
-    if (!r) return 'คำขอเซ็น';
-    if (r.kind === 'ssh-login') return `login ด้วย user "${r.user}"`;
-    if (r.kind === 'sshsig') return `เซ็นไฟล์/ข้อความ (namespace "${r.namespace}")`;
-    return 'ข้อมูลที่ไม่รู้จัก (ไม่ใช่การ login)';
+    if (!r) return 'Signature request';
+    if (r.kind === 'ssh-login') return `Login as user "${r.user}"`;
+    if (r.kind === 'sshsig') return `Sign file/message (namespace "${r.namespace}")`;
+    return 'Unknown data (not a login)';
 }
 
 function describeServer(server) {
-    if (!server) return { main: 'ไม่ทราบ', sub: 'ssh ไม่ได้ส่ง session-bind (OpenSSH เก่ากว่า 8.9) หรือตรวจลายเซ็นไม่ผ่าน' };
+    if (!server) return { main: 'Unknown', sub: 'ssh sent no session-bind (OpenSSH older than 8.9) or its signature did not verify' };
     const main = server.names && server.names.length ? server.names.join(', ')
-        : server.hashedMatches ? 'อยู่ใน known_hosts (ชื่อถูก hash)' : 'ไม่อยู่ใน known_hosts';
-    const sub = `${server.fingerprint}${server.forwarded ? ' · ผ่าน agent forwarding' : ''}`;
+        : server.hashedMatches ? 'In known_hosts (hashed name)' : 'Not in known_hosts';
+    const sub = `${server.fingerprint}${server.forwarded ? ' · via agent forwarding' : ''}`;
     return { main, sub };
 }
 
-const RESULT_TEXT = { approved: 'Approve', rejected: 'Reject', error: 'Error' };
+const RESULT_TEXT = { approved: 'Approved', rejected: 'Rejected', error: 'Error' };
 
 function historyRow(e) {
     const tr = document.createElement('tr');
@@ -94,49 +94,49 @@ async function loadHistory() {
         showHistory(entries);
     } catch (err) {
         $('history-empty').hidden = false;
-        $('history-empty').textContent = `อ่านประวัติไม่ได้: ${err.message}`;
+        $('history-empty').textContent = `Cannot read history: ${err.message}`;
     }
 }
 
 function renderState({ agent, device }) {
     setDot('st-agent', agent.running ? 'ok' : 'bad');
-    $('st-agent-text').textContent = agent.running ? 'ทำงานอยู่' : 'หยุดอยู่';
+    $('st-agent-text').textContent = agent.running ? 'Running' : 'Stopped';
     $('st-socket').textContent = agent.socketPath;
-    $('st-transport').textContent = agent.transport === 'usb' ? 'USB (เครื่องจริง)'
-        : agent.transport === 'speculos' ? 'Speculos (ตัวจำลอง)' : agent.transport;
+    $('st-transport').textContent = agent.transport === 'usb' ? 'USB (real device)'
+        : agent.transport === 'speculos' ? 'Speculos (emulator)' : agent.transport;
 
     if (!device.connected) {
         setDot('st-device', 'bad');
-        $('st-device-text').textContent = 'ไม่พบเครื่อง';
+        $('st-device-text').textContent = 'Not found';
     } else if (device.locked) {
         setDot('st-device', 'warn');
-        $('st-device-text').textContent = 'เจอเครื่อง แต่ล็อกอยู่';
+        $('st-device-text').textContent = 'Connected, locked';
     } else {
         setDot('st-device', 'ok');
-        $('st-device-text').textContent = 'เจอเครื่อง';
+        $('st-device-text').textContent = 'Connected';
     }
 
     if (agent.pending) {
         setDot('st-app', 'warn');
-        $('st-app-text').textContent = 'กำลังรอกดบนเครื่อง';
+        $('st-app-text').textContent = 'Waiting for a button press';
     } else if (device.appOpen) {
         setDot('st-app', 'ok');
-        $('st-app-text').textContent = 'Nano SSH Agent เปิดอยู่';
+        $('st-app-text').textContent = 'Nano SSH Agent is open';
     } else {
         setDot('st-app', device.connected && !device.locked ? 'warn' : '');
-        $('st-app-text').textContent = device.currentApp ? `เปิดแอปอื่นอยู่ (${device.currentApp})`
-            : device.connected && !device.locked ? 'ยังไม่ได้เปิดแอป Nano SSH Agent' : '-';
+        $('st-app-text').textContent = device.currentApp ? `Another app is open (${device.currentApp})`
+            : device.connected && !device.locked ? 'Nano SSH Agent is not open' : '-';
     }
 
     $('agent-start').hidden = agent.running;
     $('agent-stop').hidden = !agent.running;
 
     $('pending').hidden = !agent.pending;
-    $('pending-since').textContent = agent.pending ? `ตั้งแต่ ${time(agent.pending.since)}` : '';
+    $('pending-since').textContent = agent.pending ? `since ${time(agent.pending.since)}` : '';
     if (agent.pending) {
         const req = agent.pending.request;
         const srv = req && req.kind === 'ssh-login' ? describeServer(req.server) : null;
-        $('pending-what').textContent = describeRequest(req) + (srv ? ` ไปที่ ${srv.main}` : '');
+        $('pending-what').textContent = describeRequest(req) + (srv ? ` to ${srv.main}` : '');
     }
     $('st-error').hidden = !device.error;
     $('st-error').textContent = device.error || '';
@@ -155,7 +155,7 @@ async function loadKey() {
         $('key-line').textContent = key.line;
         $('key-cache').hidden = !key.fromCache;
         $('key-cache').textContent = key.fromCache
-            ? `ค่าที่อ่านไว้เมื่อ ${new Date(key.fetchedAt).toLocaleString()} (ตอนนี้อ่านจากเครื่องไม่ได้)` : '';
+            ? `Read on ${new Date(key.fetchedAt).toLocaleString()} (the device cannot be read right now)` : '';
         $('key-error').hidden = true;
     } catch (err) {
         $('key-error').hidden = false;
@@ -170,14 +170,14 @@ async function copyKey() {
     const text = $('key-line').textContent;
     try {
         await navigator.clipboard.writeText(text);
-        $('key-copied').textContent = 'คัดลอกแล้ว';
+        $('key-copied').textContent = 'Copied';
     } catch {
         // สำรอง: เลือกข้อความไว้ให้กด Ctrl+C เอง
         const range = document.createRange();
         range.selectNodeContents($('key-line'));
         getSelection().removeAllRanges();
         getSelection().addRange(range);
-        $('key-copied').textContent = 'เลือกข้อความไว้แล้ว กด Ctrl+C';
+        $('key-copied').textContent = 'Text selected, press Ctrl+C';
     }
     setTimeout(() => { $('key-copied').textContent = ''; }, 3000);
 }
@@ -199,7 +199,7 @@ async function agentAction(action) {
         await api('POST', `/api/agent/${action}`, {});
     } catch (err) {
         $('agent-error').hidden = false;
-        $('agent-error').textContent = action === 'start' ? `เริ่ม agent ไม่ได้: ${err.message}` : err.message;
+        $('agent-error').textContent = action === 'start' ? `Cannot start the agent: ${err.message}` : err.message;
     } finally {
         buttons.forEach((b) => { b.disabled = false; });
     }
@@ -210,13 +210,13 @@ async function copyFrom(id, button) {
     const old = button.textContent;
     try {
         await navigator.clipboard.writeText(text);
-        button.textContent = 'คัดลอกแล้ว';
+        button.textContent = 'Copied';
     } catch {
         const range = document.createRange();
         range.selectNodeContents($(id));
         getSelection().removeAllRanges();
         getSelection().addRange(range);
-        button.textContent = 'เลือกไว้แล้ว กด Ctrl+C';
+        button.textContent = 'Selected, press Ctrl+C';
     }
     setTimeout(() => { button.textContent = old; }, 2500);
 }
@@ -230,7 +230,7 @@ async function buildAddKey(event) {
             host: $('ak-host').value.trim(),
             port: Number($('ak-port').value || 22),
         });
-        $('ak-fp').textContent = `key ที่จะเพิ่ม: ${r.keyFingerprint} → ${r.target}`;
+        $('ak-fp').textContent = `Key to add: ${r.keyFingerprint} → ${r.target}`;
         $('ak-posix').textContent = r.posix;
         $('ak-ps').textContent = r.powershell;
         $('ak-test-posix').textContent = r.testPosix;
@@ -252,12 +252,12 @@ function connectEvents() {
     });
     es.addEventListener('history', (e) => showHistory([JSON.parse(e.data)], { prepend: true }));
     es.onopen = () => { $('conn').className = 'pill on'; $('conn').textContent = 'real-time'; };
-    es.onerror = () => { $('conn').className = 'pill off'; $('conn').textContent = 'ขาดการเชื่อมต่อ กำลังลองใหม่...'; };
+    es.onerror = () => { $('conn').className = 'pill off'; $('conn').textContent = 'Disconnected, retrying...'; };
 }
 
 if (!token) {
     $('no-token').hidden = false;
-    $('conn').textContent = 'ไม่มี token';
+    $('conn').textContent = 'No token';
 } else {
     $('key-refresh').addEventListener('click', loadKey);
     $('key-copy').addEventListener('click', copyKey);

@@ -111,7 +111,7 @@ class LedgerAgent extends EventEmitter {
 
         const request = this.describe(data, ctx.binds);
         const event = { time: new Date().toISOString(), request, keyFingerprint: fingerprint(reqBlob) };
-        this.log(`ขอลายเซ็น ${data.length} ไบต์ (${request.kind}${request.user ? `, user ${request.user}` : ''}) รอกดยืนยันบนเครื่อง...`);
+        this.log(`Signature request, ${data.length} bytes (${request.kind}${request.user ? `, user ${request.user}` : ''}): waiting for approval on the device...`);
         let sigHex;
         try {
             sigHex = await this.withDevice(async () => {
@@ -147,7 +147,7 @@ class LedgerAgent extends EventEmitter {
         if (name !== 'session-bind@openssh.com') return frame(SSH_AGENT_FAILURE);
         const bind = parseSessionBind(r);
         if (!verifySshSignature(bind.hostKey, bind.sessionId, bind.signature)) {
-            this.log('session-bind: ลายเซ็นของ host key ไม่ถูกต้อง ไม่เชื่อถือ');
+            this.log('session-bind: invalid host key signature, not trusted');
             return frame(SSH_AGENT_FAILURE);
         }
         if (ctx.binds.size >= MAX_BINDS_PER_CONNECTION) ctx.binds.delete(ctx.binds.keys().next().value);
@@ -170,7 +170,7 @@ class LedgerAgent extends EventEmitter {
                     return frame(SSH_AGENT_FAILURE);
             }
         } catch (err) {
-            this.log(`คำขอ ${type} ล้มเหลว: ${err.message}`);
+            this.log(`Request ${type} failed: ${err.message}`);
             return frame(SSH_AGENT_FAILURE);
         }
     }
@@ -188,7 +188,7 @@ class LedgerAgent extends EventEmitter {
             while (pending.length >= 4) {
                 const len = pending.readUInt32BE(0);
                 if (len === 0 || len > MAX_MESSAGE_LEN) {
-                    this.log(`ข้อความยาวผิดปกติ ตัดการเชื่อมต่อ: ${len}`);
+                    this.log(`Message length out of range, closing connection: ${len}`);
                     conn.destroy();
                     return;
                 }
@@ -240,7 +240,7 @@ class LedgerAgent extends EventEmitter {
         }
         server.on('error', (err) => this.log(`agent server error: ${err.message}`));
         this.server = server;
-        this.log(`agent รออยู่ที่ ${this.socketPath} (transport: ${this.ledger.TRANSPORT})`);
+        this.log(`Agent listening on ${this.socketPath} (transport: ${this.ledger.TRANSPORT})`);
         this.emitState();
         return this.state();
     }
@@ -252,7 +252,7 @@ class LedgerAgent extends EventEmitter {
         for (const conn of this.connections) conn.destroy();  // คำขอที่ค้างอยู่จะไม่ได้คำตอบ
         await new Promise((resolve) => server.close(() => resolve()));
         if (!isNamedPipe(this.socketPath) && fs.existsSync(this.socketPath)) fs.unlinkSync(this.socketPath);
-        this.log('agent หยุดแล้ว');
+        this.log('Agent stopped');
         this.emitState();
         return this.state();
     }

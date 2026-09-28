@@ -13,11 +13,11 @@ agent.on('sign-end', (e) => {
 agent.start()
     .then(({ socketPath }) => {
         console.log(IS_WINDOWS
-            ? `ใช้งาน (PowerShell): $env:SSH_AUTH_SOCK = "${socketPath}"`
-            : `ใช้งาน: export SSH_AUTH_SOCK=${socketPath}`);
+            ? `Use it (PowerShell): $env:SSH_AUTH_SOCK = "${socketPath}"`
+            : `Use it: export SSH_AUTH_SOCK=${socketPath}`);
     })
     .catch((err) => {
-        console.error(`เริ่ม agent ไม่ได้: ${err.message}`);
+        console.error(`Cannot start the agent: ${err.message}`);
         process.exit(1);
     });
 

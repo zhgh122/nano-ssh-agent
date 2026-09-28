@@ -29,7 +29,7 @@ async function startBackend({ port = 0, startAgent = true, ledger, socketPath, h
             return { ...lastKey, fromCache: false };
         } catch (err) {
             if (lastKey) return { ...lastKey, fromCache: true, error: err.message };
-            throw Object.assign(new Error(`อ่าน key จากเครื่องไม่ได้: ${err.message}`), { status: 503 });
+            throw Object.assign(new Error(`Cannot read the key from the device: ${err.message}`), { status: 503 });
         }
     }
 
@@ -67,7 +67,7 @@ async function startBackend({ port = 0, startAgent = true, ledger, socketPath, h
                 result: e.result, error: e.error });
             dashboard.broadcast('history', entry);
         } catch (err) {
-            log(`บันทึกประวัติไม่ได้: ${err.message}`);
+            log(`Cannot write history: ${err.message}`);
         }
     });
 
@@ -78,7 +78,7 @@ async function startBackend({ port = 0, startAgent = true, ledger, socketPath, h
             await agent.start();
         } catch (err) {
             agentError = err.message;   // เช่น มี agent อื่นใช้ socket อยู่: dashboard ยังเปิดได้
-            log(`เริ่ม agent ไม่ได้: ${err.message}`);
+            log(`Cannot start the agent: ${err.message}`);
         }
     }
 

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="th">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -10,24 +10,24 @@
 <body>
 <header>
   <h1>Nano SSH Agent</h1>
-  <span id="conn" class="pill off">กำลังเชื่อมต่อ...</span>
+  <span id="conn" class="pill off">Connecting...</span>
 </header>
 
 <main>
   <p id="no-token" class="notice" hidden>
-    ไม่พบ token: เปิดลิงก์ที่ dashboard พิมพ์ออกมาทั้งบรรทัด (ส่วนที่อยู่หลัง <code>#token=</code>)
+    No token: open the full link the dashboard printed (including the part after <code>#token=</code>).
   </p>
 
   <section id="pending" class="banner" hidden>
-    <strong>รอกด Approve หรือ Reject บน Ledger</strong>
+    <strong>Approve or reject on the Ledger</strong>
     <span id="pending-what"></span>
     <span id="pending-since" class="muted"></span>
-    <small>กด Approve เฉพาะเมื่อคุณเพิ่งสั่งเชื่อมต่อเอง ถ้าไม่ได้สั่ง ให้กด Reject</small>
+    <small>Approve only if you just started a connection yourself. Otherwise, reject.</small>
   </section>
 
   <section class="card" id="status">
     <div class="card-head">
-      <h2>สถานะ</h2>
+      <h2>Status</h2>
       <div class="row">
         <button id="agent-start" class="primary" type="button" hidden>Start agent</button>
         <button id="agent-stop" type="button" hidden>Stop agent</button>
@@ -36,9 +36,9 @@
     <dl class="status-grid">
       <dt>Agent</dt><dd><span id="st-agent" class="dot"></span><span id="st-agent-text">-</span></dd>
       <dt>Socket</dt><dd><code id="st-socket">-</code></dd>
-      <dt>การเชื่อมต่อ</dt><dd id="st-transport">-</dd>
+      <dt>Transport</dt><dd id="st-transport">-</dd>
       <dt>Ledger</dt><dd><span id="st-device" class="dot"></span><span id="st-device-text">-</span></dd>
-      <dt>แอปบนเครื่อง</dt><dd><span id="st-app" class="dot"></span><span id="st-app-text">-</span></dd>
+      <dt>Device app</dt><dd><span id="st-app" class="dot"></span><span id="st-app-text">-</span></dd>
     </dl>
     <p id="st-error" class="error" hidden></p>
     <p id="agent-error" class="error" hidden></p>
@@ -46,16 +46,16 @@
   <section class="card" id="key">
     <div class="card-head">
       <h2>Public key</h2>
-      <button id="key-refresh" type="button">อ่านจากเครื่องอีกครั้ง</button>
+      <button id="key-refresh" type="button">Read from device again</button>
     </div>
-    <p id="key-empty" class="muted">เปิดแอป Nano SSH Agent บนเครื่องเพื่ออ่าน key</p>
+    <p id="key-empty" class="muted">Open the Nano SSH Agent app on the device to read the key.</p>
     <div id="key-body" hidden>
       <dl class="status-grid">
         <dt>Fingerprint</dt><dd><code id="key-fp"></code></dd>
       </dl>
       <pre id="key-line" class="keyline"></pre>
       <div class="row">
-        <button id="key-copy" class="primary" type="button">Copy บรรทัด ssh-ed25519</button>
+        <button id="key-copy" class="primary" type="button">Copy ssh-ed25519 line</button>
         <span id="key-copied" class="muted" aria-live="polite"></span>
       </div>
       <p id="key-cache" class="muted" hidden></p>
@@ -63,14 +63,14 @@
     <p id="key-error" class="error" hidden></p>
   </section>
   <section class="card" id="addkey">
-    <h2>เพิ่ม key ไปที่ server</h2>
-    <p class="muted">สร้างคำสั่งให้คุณ copy ไปรันเอง แอปนี้ไม่เชื่อมต่อ server และไม่แก้ authorized_keys ให้
-      ตอนรันคำสั่ง ssh จะ login ด้วยวิธีเดิมของคุณ (key หรือรหัสผ่านเดิม)</p>
+    <h2>Add the key to a server</h2>
+    <p class="muted">Generates commands for you to copy and run yourself. This app never connects to a server or
+      edits authorized_keys. When you run them, ssh logs in the way you do today (existing key or password).</p>
     <form id="addkey-form" class="form-row" novalidate>
       <label>User <input id="ak-user" name="user" required autocomplete="off" spellcheck="false" placeholder="ubuntu"></label>
-      <label>Server <input id="ak-host" name="host" required autocomplete="off" spellcheck="false" placeholder="203.0.113.10 หรือ server.example.com"></label>
+      <label>Server <input id="ak-host" name="host" required autocomplete="off" spellcheck="false" placeholder="203.0.113.10 or server.example.com"></label>
       <label>Port <input id="ak-port" name="port" type="number" min="1" max="65535" value="22"></label>
-      <button class="primary" type="submit">สร้างคำสั่ง</button>
+      <button class="primary" type="submit">Generate commands</button>
     </form>
     <p id="ak-error" class="error pre" hidden></p>
     <div id="ak-result" hidden>
@@ -81,7 +81,7 @@
       <h3>Windows (PowerShell)</h3>
       <pre id="ak-ps" class="keyline"></pre>
       <button type="button" data-copy="ak-ps">Copy</button>
-      <h3>ทดสอบ login ด้วย Ledger หลังเพิ่ม key</h3>
+      <h3>Test the Ledger login after adding the key</h3>
       <pre id="ak-test-posix" class="keyline"></pre>
       <button type="button" data-copy="ak-test-posix">Copy (Linux/macOS)</button>
       <pre id="ak-test-ps" class="keyline"></pre>
@@ -91,13 +91,13 @@
 
   <section class="card" id="history">
     <div class="card-head">
-      <h2>ประวัติการเซ็น</h2>
+      <h2>Signing history</h2>
       <span id="history-file" class="muted small"></span>
     </div>
-    <p id="history-empty" class="muted">ยังไม่มีการเซ็น</p>
+    <p id="history-empty" class="muted">No signatures yet.</p>
     <div class="table-wrap" hidden id="history-wrap">
       <table>
-        <thead><tr><th>เวลา</th><th>คำขอ</th><th>Server</th><th>ผล</th></tr></thead>
+        <thead><tr><th>Time</th><th>Request</th><th>Server</th><th>Result</th></tr></thead>
         <tbody id="history-rows"></tbody>
       </table>
     </div>

@@ -13,12 +13,12 @@ const KEY_LINE_RE = /^ssh-ed25519 [A-Za-z0-9+/]+={0,2} [A-Za-z0-9._@-]{1,64}$/;
 
 function validate({ user, host, port }) {
     const errors = [];
-    if (typeof user !== 'string' || !USER_RE.test(user)) errors.push('user: ใช้ได้เฉพาะ A-Z a-z 0-9 . _ - (ห้ามขึ้นต้นด้วย - หรือ .)');
+    if (typeof user !== 'string' || !USER_RE.test(user)) errors.push('user: only A-Z a-z 0-9 . _ - allowed (must not start with - or .)');
     const h = typeof host === 'string' ? host.replace(/^\[(.*)\]$/, '$1') : '';
     const isIpv6 = h.includes(':');
-    if (!(isIpv6 ? IPV6_RE.test(h) : HOSTNAME_RE.test(h))) errors.push('host: ต้องเป็นชื่อ host หรือ IP address');
+    if (!(isIpv6 ? IPV6_RE.test(h) : HOSTNAME_RE.test(h))) errors.push('host: must be a host name or IP address');
     const p = Number(port);
-    if (!Number.isInteger(p) || p < 1 || p > 65535) errors.push('port: ต้องเป็นตัวเลข 1-65535');
+    if (!Number.isInteger(p) || p < 1 || p > 65535) errors.push('port: must be a number from 1 to 65535');
     return { errors, user, host: h, port: p };
 }
 
@@ -41,7 +41,7 @@ function buildAddKeyCommands({ user, host, port = 22, keyLine, socketPath }) {
     const v = validate({ user, host, port });
     if (v.errors.length) throw Object.assign(new Error(v.errors.join('\n')), { status: 400 });
     if (typeof keyLine !== 'string' || !KEY_LINE_RE.test(keyLine)) {
-        throw Object.assign(new Error('key ไม่อยู่ในรูปแบบ ssh-ed25519 ที่คาดไว้'), { status: 400 });
+        throw Object.assign(new Error('key is not an ssh-ed25519 line in the expected format'), { status: 400 });
     }
     const target = `${v.user}@${v.host.includes(':') ? `[${v.host}]` : v.host}`;
     const portOpt = v.port === 22 ? '' : ` -p ${v.port}`;

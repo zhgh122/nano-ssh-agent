@@ -72,7 +72,7 @@ if (!app.requestSingleInstanceLock()) {
         }
     });
     app.whenReady().then(createWindow).catch((err) => {
-        console.error(`เปิด dashboard ไม่ได้: ${err.message}`);
+        console.error(`Cannot start the dashboard: ${err.message}`);
         app.exit(1);
     });
     // สั่งปิดจาก terminal/ระบบ: ปิดแบบเรียบร้อย (หยุด agent และลบ socket)
