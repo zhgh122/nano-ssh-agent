@@ -1,11 +1,13 @@
 // ประกอบ agent + ตัวตรวจสถานะเครื่อง + HTTP server เข้าด้วยกัน
 // ใช้ทั้งจาก cli.js (เปิดผ่านเบราว์เซอร์) และ electron/main.js
-const { LedgerAgent } = require('../host/lib/agent-core');
-const { DeviceMonitor } = require('../host/lib/device-status');
+const { requireHost } = require('./host-path');
+
+const { LedgerAgent } = requireHost('lib/agent-core');
+const { DeviceMonitor } = requireHost('lib/device-status');
+const { authorizedKeyLine, fingerprint, ed25519Blob } = requireHost('lib/ssh-key');
+const { History } = requireHost('lib/history');
+const { buildAddKeyCommands } = requireHost('lib/add-key-command');
 const { createDashboard } = require('./server');
-const { authorizedKeyLine, fingerprint, ed25519Blob } = require('../host/lib/ssh-key');
-const { History } = require('../host/lib/history');
-const { buildAddKeyCommands } = require('../host/lib/add-key-command');
 
 async function startBackend({ port = 0, startAgent = true, ledger, socketPath, historyPath, pollMs = 2000,
                              log = () => {} } = {}) {

@@ -21,6 +21,9 @@ This is an experimental, unaudited project. It is not a Ledger product.
   Only approve right after you started a connection yourself, and reject any unexpected prompt.
   Parsing the SSH authentication request and displaying the user name and key on the device is
   planned.
+- The dashboard and the signing history show which user and server a signature is for, but they
+  run on the same computer as ssh. If that computer is compromised, what they show can be false.
+  The history file is local and contains no signatures or signed data.
 - The app signs any message of up to 510 bytes on the allowed path after approval; it does not
   yet check that the message is an SSH authentication request.
 - With agent forwarding (`ssh -A`), anyone with root on the remote host can ask your agent for

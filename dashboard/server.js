@@ -161,7 +161,9 @@ function createDashboard({ agent, monitor, routes = {}, host = '127.0.0.1', port
             agent.off('state', onState);
             monitor.off('status', onState);
             for (const res of clients) res.end();
-            await new Promise((resolve) => server.close(() => resolve()));
+            const closed = new Promise((resolve) => server.close(() => resolve()));
+            server.closeAllConnections();   // ไม่รอ keep-alive ของหน้าเว็บหมดเวลา
+            await closed;
         },
     };
 }

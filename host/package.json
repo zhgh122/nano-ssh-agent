@@ -10,11 +10,10 @@
     "test": "node --test test/*.test.js"
   },
   "license": "Apache-2.0",
-  "dependencies": {
-    "@ledgerhq/hw-transport-node-hid": "^6.33.5"
-  },
   "allowScripts": {
-    "node-hid@2.1.2": true,
-    "usb@2.9.0": true
+    "node-hid@2.1.2": true
+  },
+  "dependencies": {
+    "@ledgerhq/hw-transport-node-hid-noevents": "^6.36.0"
   }
 }

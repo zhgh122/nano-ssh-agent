@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Local dashboard (web UI + backend on 127.0.0.1, Electron wrapper): live agent/device/app/approval
+  status, public key with fingerprint and copy, signing history, agent Start/Stop, commands to add
+  the key to a server
+- Signing history file (no signatures or signed data stored), with user and verified server
+- `session-bind@openssh.com` support: the host key signature is verified before a server is named
+
+### Changed
+
+- The agent is split into `host/lib/` modules; `agent.js` is a thin command line over them
+- An agent no longer deletes the socket of another running agent; it refuses to start instead
+- USB transport uses `@ledgerhq/hw-transport-node-hid-noevents` (no `usb` native module, which
+  crashed Electron on exit)
+
 ## [0.1.0] - 2026-09-26
 
 ### Added

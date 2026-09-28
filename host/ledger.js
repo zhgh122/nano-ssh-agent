@@ -52,11 +52,27 @@ async function speculosExchange(apduHex) {
 
 let hidTransport = null;
 
+// ใช้ transport แบบไม่มี hotplug listener (ไม่โหลด native module "usb" ที่ทำให้ Electron crash ตอนปิด)
+// โหลดเฉพาะตอนใช้ USB จะได้ไม่ต้องมี native module ตอนทดสอบกับ Speculos
+function hidModule() {
+    return require('@ledgerhq/hw-transport-node-hid-noevents');
+}
+
+// รอให้เจอเครื่อง Ledger ทาง USB ได้ไม่เกิน USB_OPEN_TIMEOUT_MS แล้วเปิดตัวแรกที่เจอ
+async function openUsb() {
+    const { default: TransportNodeHid, getDevices } = hidModule();
+    const deadline = Date.now() + USB_OPEN_TIMEOUT_MS;
+    for (;;) {
+        const devices = getDevices();
+        if (devices.length > 0) return TransportNodeHid.open(devices[0].path);
+        if (Date.now() >= deadline) throw new Error('No Ledger device found (timeout)');
+        await new Promise((r) => setTimeout(r, 250));
+    }
+}
+
 async function usbExchange(apduHex) {
     if (!hidTransport) {
-        // โหลดเฉพาะตอนใช้ USB จะได้ไม่ต้องมี native module ตอนทดสอบกับ Speculos
-        const TransportNodeHid = require('@ledgerhq/hw-transport-node-hid').default;
-        hidTransport = await TransportNodeHid.create(USB_OPEN_TIMEOUT_MS, USB_OPEN_TIMEOUT_MS);
+        hidTransport = await openUsb();
         hidTransport.on('disconnect', () => { hidTransport = null; });
     }
     try {
@@ -97,8 +113,7 @@ async function exchange(apduHex) {
 async function deviceConnected() {
     if (TRANSPORT === 'usb') {
         if (hidTransport) return true;
-        const TransportNodeHid = require('@ledgerhq/hw-transport-node-hid').default;
-        return (await TransportNodeHid.list()).length > 0;
+        return hidModule().getDevices().length > 0;
     }
     if (TRANSPORT === 'speculos') {
         try {

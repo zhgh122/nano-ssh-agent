@@ -21,7 +21,9 @@ Based on the [Ledger C boilerplate](https://github.com/LedgerHQ/app-boilerplate)
 | --- | --- |
 | `src/` | Device app (C). `handler/sign_ssh.c` is the signing flow. |
 | `host/ledger.js` | APDU helpers: `getPublicKey`, `sign` over Speculos or USB (`LEDGER_TRANSPORT`) |
-| `host/agent.js` | `ssh-agent` protocol server on a Unix socket |
+| `host/agent.js` | `ssh-agent` command line (Unix socket, or named pipe on Windows) |
+| `host/lib/` | Agent core, SSH parsing, known_hosts lookup, signing history, command generator |
+| `dashboard/` | Local dashboard: web UI + backend on `127.0.0.1`, optional Electron wrapper |
 | `host/pubkey.js` | Turns a raw public key (hex) into an `ssh-ed25519` line |
 | `host/verify.js` | Verifies a raw ed25519 signature |
 | `host/test-apdu.js` | APDU-level tests against Speculos |
@@ -92,7 +94,20 @@ Environment variables:
 | `LEDGER_TRANSPORT` | `speculos` | `speculos` (REST API) or `usb` (real device over HID) |
 | `SPECULOS_URL` | `http://localhost:5000` | Speculos REST API |
 | `LEDGER_USB_TIMEOUT_MS` | `5000` | How long to look for a USB device before answering failure |
-| `LEDGER_AGENT_SOCK` | `/tmp/nano-ssh-agent.sock` | Agent socket path (created with mode 0600) |
+| `LEDGER_AGENT_SOCK` | `/tmp/nano-ssh-agent.sock`, Windows `\\.\pipe\nano-ssh-agent` | Agent socket or named pipe (Unix socket created with mode 0600) |
+| `NANO_SSH_AGENT_HISTORY` | `~/.config/nano-ssh-agent/history.jsonl` (macOS `~/Library/Application Support/...`, Windows `%APPDATA%\...`) | Signing history file |
+| `KNOWN_HOSTS_FILES` | `~/.ssh/known_hosts`, `known_hosts2`, system file | Where server names are looked up (path list) |
+| `DASHBOARD_PORT` | `7373` | Port of the web dashboard (`dashboard/cli.js`) |
+
+On Windows, `\\.\pipe\openssh-ssh-agent` can be used instead (then `SSH_AUTH_SOCK` is not needed),
+but only after stopping and disabling the Windows "OpenSSH Authentication Agent" service, which
+owns that pipe.
+
+Every signature is recorded in the history file: time, kind (SSH login or `ssh-keygen -Y` file
+signature), user, server, key fingerprint and result. Signatures, the signed data and session
+ids are never stored. The server is named only when OpenSSH (8.9+) sent a `session-bind` whose
+host key signature verifies; the name comes from `known_hosts` (hashed entries only give the
+host key fingerprint).
 
 ## Tests
 
@@ -100,6 +115,10 @@ Environment variables:
 # Ragger functional tests (in the container, after building for the device)
 pip install -r tests/standalone/requirements.txt
 pytest tests/standalone/ --tb=short -v --device nanosp
+
+# Unit tests (no device needed)
+(cd host && npm test)
+(cd dashboard && npm test)
 
 # Host-side tests against Speculos (nanosp) started with host/run-speculos.sh
 node host/test-apdu.js
@@ -109,6 +128,63 @@ SSH_AUTH_SOCK=/tmp/nano-ssh-agent.sock host/test-ssh-login.sh   # agent must be 
 `test-ssh-login.sh` starts `sshd` as the current user on `127.0.0.1` with a temporary
 `authorized_keys`, and always stops it and deletes its files on exit. It never touches
 `~/.ssh/authorized_keys`.
+
+## Dashboard
+
+A local page showing, in real time, whether the agent runs, whether a Ledger is found (Speculos
+or USB), whether the app is open and whether a signature is waiting for your button press (with
+the user and server it is for). It also shows the public key (fingerprint, copy button), the
+signing history, Start/Stop for the agent, and generates the commands to add the key to a server
+(you copy and run them yourself; the dashboard never connects to a server).
+
+The dashboard runs the agent itself, so stop any other agent on the same socket first
+(for example the one started at login by `setup-vscode-windows.ps1`).
+
+### Web version (works on a headless server)
+
+```shell
+cd host && npm install && cd ..          # USB support (not needed for Speculos)
+node dashboard/cli.js                     # or: LEDGER_TRANSPORT=usb node dashboard/cli.js
+# dashboard: http://127.0.0.1:7373/#token=...
+```
+
+Open the printed link **including** `#token=...`. On a remote machine, forward port 7373 (VS Code:
+Ports panel → Forward a Port → 7373) and open the same link on your side with the forwarded port.
+The token changes every start and is never sent to the server in a URL query; do not share the link.
+
+### Electron app
+
+```shell
+cd dashboard
+npm install
+npm run electron                          # development run (defaults to USB)
+LEDGER_TRANSPORT=speculos npm run electron
+```
+
+Build installers on the operating system you target (cross-building is not supported here):
+
+```shell
+npm run dist:win      # Windows: NSIS installer + portable .exe  (run on Windows)
+npm run dist:mac      # macOS: .dmg + .zip, unsigned              (run on a Mac)
+npm run dist:linux    # Linux: AppImage + .tar.gz
+```
+
+Output goes to `dashboard/dist/`. The builds are not code-signed: Windows SmartScreen and macOS
+Gatekeeper will warn (on macOS: right-click → Open the first time). The packaged app talks to
+the device over USB unless `LEDGER_TRANSPORT=speculos` is set.
+
+### Security model
+
+- The backend listens on `127.0.0.1` only and refuses any other address.
+- Every API call needs a random per-launch token; requests whose `Host` header is not
+  `localhost`/`127.0.0.1` are refused (DNS rebinding), POSTs need a loopback `Origin` and JSON,
+  there are no CORS headers, and the page has a `default-src 'self'` Content Security Policy.
+- Electron: `contextIsolation` on, `nodeIntegration` off, renderer sandbox on, no preload; every
+  request outside the local backend is cancelled; navigation, new windows and `<webview>` are
+  blocked; only the clipboard-write permission is granted.
+- Nothing in the dashboard can approve a signature. Approval only happens on the Ledger. The
+  dashboard shows what is being signed, but it runs on the same computer as ssh: if that computer
+  is compromised, the dashboard can be lied to as well. Only approve right after you connected.
 
 ## Install on a real Nano S Plus
 

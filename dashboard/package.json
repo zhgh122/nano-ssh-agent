@@ -5,7 +5,70 @@
   "description": "Local dashboard for nano-ssh-agent (web UI + optional Electron wrapper)",
   "scripts": {
     "start": "node cli.js",
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js",
+    "electron": "electron .",
+    "dist": "electron-builder",
+    "dist:win": "electron-builder --win",
+    "dist:mac": "electron-builder --mac",
+    "dist:linux": "electron-builder --linux"
   },
-  "license": "Apache-2.0"
+  "license": "Apache-2.0",
+  "main": "electron/main.js",
+  "author": "nano-ssh-agent contributors",
+  "build": {
+    "appId": "io.github.zhgh122.nanosshagent",
+    "productName": "Nano SSH Agent",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "package.json",
+      "backend.js",
+      "server.js",
+      "host-path.js",
+      "cli.js",
+      "electron/**",
+      "public/**",
+      {
+        "from": "../host",
+        "to": "host",
+        "filter": [
+          "ledger.js",
+          "package.json",
+          "lib/**"
+        ]
+      }
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.developer-tools"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "tar.gz"
+      ],
+      "category": "Development"
+    }
+  },
+  "devDependencies": {
+    "electron": "^44.4.5",
+    "electron-builder": "^26.15.3"
+  },
+  "allowScripts": {
+    "electron@44.4.5": true,
+    "node-hid@2.1.2": true
+  },
+  "dependencies": {
+    "@ledgerhq/hw-transport-node-hid-noevents": "^6.36.0"
+  }
 }
