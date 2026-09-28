@@ -6,7 +6,8 @@
   "main": "agent.js",
   "scripts": {
     "agent": "node agent.js",
-    "test:apdu": "node test-apdu.js"
+    "test:apdu": "node test-apdu.js",
+    "test": "node --test test/*.test.js"
   },
   "license": "Apache-2.0",
   "dependencies": {
