@@ -62,6 +62,33 @@
     </div>
     <p id="key-error" class="error" hidden></p>
   </section>
+  <section class="card" id="addkey">
+    <h2>เพิ่ม key ไปที่ server</h2>
+    <p class="muted">สร้างคำสั่งให้คุณ copy ไปรันเอง แอปนี้ไม่เชื่อมต่อ server และไม่แก้ authorized_keys ให้
+      ตอนรันคำสั่ง ssh จะ login ด้วยวิธีเดิมของคุณ (key หรือรหัสผ่านเดิม)</p>
+    <form id="addkey-form" class="form-row" novalidate>
+      <label>User <input id="ak-user" name="user" required autocomplete="off" spellcheck="false" placeholder="ubuntu"></label>
+      <label>Server <input id="ak-host" name="host" required autocomplete="off" spellcheck="false" placeholder="203.0.113.10 หรือ server.example.com"></label>
+      <label>Port <input id="ak-port" name="port" type="number" min="1" max="65535" value="22"></label>
+      <button class="primary" type="submit">สร้างคำสั่ง</button>
+    </form>
+    <p id="ak-error" class="error pre" hidden></p>
+    <div id="ak-result" hidden>
+      <p class="muted small" id="ak-fp"></p>
+      <h3>Linux / macOS (Terminal)</h3>
+      <pre id="ak-posix" class="keyline"></pre>
+      <button type="button" data-copy="ak-posix">Copy</button>
+      <h3>Windows (PowerShell)</h3>
+      <pre id="ak-ps" class="keyline"></pre>
+      <button type="button" data-copy="ak-ps">Copy</button>
+      <h3>ทดสอบ login ด้วย Ledger หลังเพิ่ม key</h3>
+      <pre id="ak-test-posix" class="keyline"></pre>
+      <button type="button" data-copy="ak-test-posix">Copy (Linux/macOS)</button>
+      <pre id="ak-test-ps" class="keyline"></pre>
+      <button type="button" data-copy="ak-test-ps">Copy (PowerShell)</button>
+    </div>
+  </section>
+
   <section class="card" id="history">
     <div class="card-head">
       <h2>ประวัติการเซ็น</h2>

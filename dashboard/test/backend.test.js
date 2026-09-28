@@ -78,3 +78,17 @@ test('there is no API that approves a signature', async (t) => {
         + fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
     assert.doesNotMatch(source, /\/button\//, 'backend never talks to the Speculos button API');
 });
+
+test('add-key-command returns commands and validates input', async (t) => {
+    const dir = tmp();
+    const b = await startBackend({ ledger: fakeLedger(), socketPath: path.join(dir, 'a.sock'),
+        historyPath: path.join(dir, 'h.jsonl'), pollMs: 50 });
+    t.after(() => b.close());
+    const ok = await call(b, 'POST', '/api/add-key-command', { user: 'ubuntu', host: '203.0.113.10', port: 2222 });
+    assert.strictEqual(ok.status, 200);
+    assert.match(ok.body.posix, /^ssh -p 2222 ubuntu@203\.0\.113\.10 '/);
+    assert.match(ok.body.keyFingerprint, /^SHA256:/);
+    const bad = await call(b, 'POST', '/api/add-key-command', { user: 'u', host: '$(reboot)', port: 22 });
+    assert.strictEqual(bad.status, 400);
+    assert.match(bad.body.error, /host/);
+});

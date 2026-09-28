@@ -5,6 +5,7 @@ const { DeviceMonitor } = require('../host/lib/device-status');
 const { createDashboard } = require('./server');
 const { authorizedKeyLine, fingerprint, ed25519Blob } = require('../host/lib/ssh-key');
 const { History } = require('../host/lib/history');
+const { buildAddKeyCommands } = require('../host/lib/add-key-command');
 
 async function startBackend({ port = 0, startAgent = true, ledger, socketPath, historyPath, pollMs = 2000,
                              log = () => {} } = {}) {
@@ -15,6 +16,21 @@ async function startBackend({ port = 0, startAgent = true, ledger, socketPath, h
 
     // public key ไม่ใช่ความลับ: เก็บค่าล่าสุดไว้แสดงได้แม้ตอนนี้เครื่องไม่พร้อม
     let lastKey = null;
+    async function readKey() {
+        try {
+            const pub = await agent.publicKey();
+            lastKey = {
+                line: authorizedKeyLine(pub, agent.comment),
+                fingerprint: fingerprint(ed25519Blob(pub)),
+                fetchedAt: new Date().toISOString(),
+            };
+            return { ...lastKey, fromCache: false };
+        } catch (err) {
+            if (lastKey) return { ...lastKey, fromCache: true, error: err.message };
+            throw Object.assign(new Error(`อ่าน key จากเครื่องไม่ได้: ${err.message}`), { status: 503 });
+        }
+    }
+
     const routes = {
         // เปิด/ปิด socket ของ agent (ไม่เกี่ยวกับการอนุมัติ: การเซ็นยังต้องกดบนเครื่องเสมอ)
         'POST /api/agent/start': async () => {
@@ -29,19 +45,15 @@ async function startBackend({ port = 0, startAgent = true, ledger, socketPath, h
             const limit = Math.min(Math.max(Number(url.searchParams.get('limit')) || 100, 1), 1000);
             return { file: history.file, entries: history.recent(limit) };
         },
-        'GET /api/key': async () => {
-            try {
-                const pub = await agent.publicKey();
-                lastKey = {
-                    line: authorizedKeyLine(pub, agent.comment),
-                    fingerprint: fingerprint(ed25519Blob(pub)),
-                    fetchedAt: new Date().toISOString(),
-                };
-                return { ...lastKey, fromCache: false };
-            } catch (err) {
-                if (lastKey) return { ...lastKey, fromCache: true, error: err.message };
-                throw Object.assign(new Error(`อ่าน key จากเครื่องไม่ได้: ${err.message}`), { status: 503 });
-            }
+        'GET /api/key': readKey,
+        // สร้างคำสั่งให้ผู้ใช้ copy ไปรันเอง: backend ไม่เชื่อมต่อ server และไม่รันคำสั่งนี้
+        'POST /api/add-key-command': async ({ body }) => {
+            const key = await readKey();
+            return {
+                ...buildAddKeyCommands({ user: body.user, host: body.host, port: body.port ?? 22,
+                    keyLine: key.line, socketPath: agent.socketPath }),
+                keyFingerprint: key.fingerprint,
+            };
         },
     };
     const dashboard = createDashboard({ agent, monitor, port, routes });

@@ -205,6 +205,44 @@ async function agentAction(action) {
     }
 }
 
+async function copyFrom(id, button) {
+    const text = $(id).textContent;
+    const old = button.textContent;
+    try {
+        await navigator.clipboard.writeText(text);
+        button.textContent = 'คัดลอกแล้ว';
+    } catch {
+        const range = document.createRange();
+        range.selectNodeContents($(id));
+        getSelection().removeAllRanges();
+        getSelection().addRange(range);
+        button.textContent = 'เลือกไว้แล้ว กด Ctrl+C';
+    }
+    setTimeout(() => { button.textContent = old; }, 2500);
+}
+
+async function buildAddKey(event) {
+    event.preventDefault();
+    $('ak-error').hidden = true;
+    try {
+        const r = await api('POST', '/api/add-key-command', {
+            user: $('ak-user').value.trim(),
+            host: $('ak-host').value.trim(),
+            port: Number($('ak-port').value || 22),
+        });
+        $('ak-fp').textContent = `key ที่จะเพิ่ม: ${r.keyFingerprint} → ${r.target}`;
+        $('ak-posix').textContent = r.posix;
+        $('ak-ps').textContent = r.powershell;
+        $('ak-test-posix').textContent = r.testPosix;
+        $('ak-test-ps').textContent = r.testPowershell;
+        $('ak-result').hidden = false;
+    } catch (err) {
+        $('ak-result').hidden = true;
+        $('ak-error').hidden = false;
+        $('ak-error').textContent = err.message;
+    }
+}
+
 function connectEvents() {
     const es = new EventSource(`/api/events?token=${encodeURIComponent(token)}`);
     es.addEventListener('state', (e) => {
@@ -224,6 +262,10 @@ if (!token) {
     $('key-refresh').addEventListener('click', loadKey);
     $('key-copy').addEventListener('click', copyKey);
     $('agent-start').addEventListener('click', () => agentAction('start'));
+    $('addkey-form').addEventListener('submit', buildAddKey);
+    for (const b of document.querySelectorAll('button[data-copy]')) {
+        b.addEventListener('click', () => copyFrom(b.dataset.copy, b));
+    }
     $('agent-stop').addEventListener('click', () => agentAction('stop'));
     loadHistory();
     connectEvents();
