@@ -89,7 +89,9 @@ try {
     }
     $HostDir = Join-Path $HOME "nano-ssh-agent\host"
     $AgentJs = Join-Path $HostDir "agent.js"
-    if (-not (Test-Path $AgentJs) -or -not (Select-String -Path $AgentJs -Pattern "nano-ssh-agent" -Quiet)) {
+    $SockJs = Join-Path $HostDir "lib\sock-path.js"
+    if (-not (Test-Path $AgentJs) -or -not (Test-Path $SockJs) -or
+        -not (Select-String -Path $SockJs -Pattern "nano-ssh-agent" -Quiet)) {
         Fail "The agent is not installed in $HostDir.`n`nRun setup-windows.ps1 first (it installs the app on the device and the agent)."
     }
     $PubFile = Join-Path $HOME ".ssh\ledger_real.pub"

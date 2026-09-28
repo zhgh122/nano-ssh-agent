@@ -103,9 +103,15 @@ Remove-Item Env:SSH_AUTH_SOCK -ErrorAction SilentlyContinue
 # One scp (one passphrase prompt) into $Dir, then move the host files.
 # Never end a path argument with "\": PowerShell 5.1 quotes paths containing spaces
 # and a trailing backslash would escape the closing quote.
-& scp -P $Port @KeyArgs "${Remote}:$RemoteDir/build/nanos2/bin/app.*" "${Remote}:$RemoteDir/host/*.js" "${Remote}:$RemoteDir/host/package*.json" $Dir
+$staleLib = Join-Path $Dir "lib"
+if (Test-Path $staleLib) { Remove-Item -Recurse -Force $staleLib }
+& scp -r -P $Port @KeyArgs "${Remote}:$RemoteDir/build/nanos2/bin/app.*" "${Remote}:$RemoteDir/host/*.js" "${Remote}:$RemoteDir/host/package*.json" "${Remote}:$RemoteDir/host/lib" $Dir
 Check-Exit "scp of the files"
 Move-Item -Force -Path (Join-Path $Dir "*.js"), (Join-Path $Dir "package*.json") -Destination $HostDir
+# host/lib: agent.js needs it (replace any older copy)
+$libDest = Join-Path $HostDir "lib"
+if (Test-Path $libDest) { Remove-Item -Recurse -Force $libDest }
+Move-Item -Path $staleLib -Destination $libDest
 
 # ---------------------------------------------------------------- load the app
 if (-not $SkipLoad) {
