@@ -292,6 +292,7 @@ mkdir nano-ssh-agent; cd nano-ssh-agent
 scp "user@buildhost:nano-ssh-agent/build/nanos2/bin/app.*" .
 mkdir host
 scp "user@buildhost:nano-ssh-agent/host/*.js" "user@buildhost:nano-ssh-agent/host/package*.json" host/
+scp -r "user@buildhost:nano-ssh-agent/host/lib" host/
 
 # load the app (device unlocked, on the dashboard, Ledger Live closed)
 py -m venv ledger-venv
