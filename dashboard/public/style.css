@@ -33,3 +33,9 @@ button { font: inherit; padding: 6px 14px; border-radius: 8px; border: 1px solid
          background: var(--card); color: var(--text); cursor: pointer; }
 button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
 button:disabled { opacity: .5; cursor: default; }
+.card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.card-head h2 { margin: 0; }
+.muted { color: var(--muted); margin: 0; }
+.row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.keyline { font: 13px ui-monospace, SFMono-Regular, Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere;
+           background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin: 12px 0; }

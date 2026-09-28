@@ -3,13 +3,31 @@
 const { LedgerAgent } = require('../host/lib/agent-core');
 const { DeviceMonitor } = require('../host/lib/device-status');
 const { createDashboard } = require('./server');
+const { authorizedKeyLine, fingerprint, ed25519Blob } = require('../host/lib/ssh-key');
 
 async function startBackend({ port = 0, startAgent = true, ledger, socketPath, pollMs = 2000, log = () => {} } = {}) {
     const agent = new LedgerAgent({ ...(ledger && { ledger }), ...(socketPath && { socketPath }) });
     agent.on('log', log);
     const monitor = new DeviceMonitor({ agent, intervalMs: pollMs });
 
-    const routes = {};
+    // public key ไม่ใช่ความลับ: เก็บค่าล่าสุดไว้แสดงได้แม้ตอนนี้เครื่องไม่พร้อม
+    let lastKey = null;
+    const routes = {
+        'GET /api/key': async () => {
+            try {
+                const pub = await agent.publicKey();
+                lastKey = {
+                    line: authorizedKeyLine(pub, agent.comment),
+                    fingerprint: fingerprint(ed25519Blob(pub)),
+                    fetchedAt: new Date().toISOString(),
+                };
+                return { ...lastKey, fromCache: false };
+            } catch (err) {
+                if (lastKey) return { ...lastKey, fromCache: true, error: err.message };
+                throw Object.assign(new Error(`อ่าน key จากเครื่องไม่ได้: ${err.message}`), { status: 503 });
+            }
+        },
+    };
     const dashboard = createDashboard({ agent, monitor, port, routes });
     const { url, port: actualPort } = await dashboard.listen();
 

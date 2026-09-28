@@ -35,6 +35,25 @@
     </dl>
     <p id="st-error" class="error" hidden></p>
   </section>
+  <section class="card" id="key">
+    <div class="card-head">
+      <h2>Public key</h2>
+      <button id="key-refresh" type="button">อ่านจากเครื่องอีกครั้ง</button>
+    </div>
+    <p id="key-empty" class="muted">เปิดแอป Nano SSH Agent บนเครื่องเพื่ออ่าน key</p>
+    <div id="key-body" hidden>
+      <dl class="status-grid">
+        <dt>Fingerprint</dt><dd><code id="key-fp"></code></dd>
+      </dl>
+      <pre id="key-line" class="keyline"></pre>
+      <div class="row">
+        <button id="key-copy" class="primary" type="button">Copy บรรทัด ssh-ed25519</button>
+        <span id="key-copied" class="muted" aria-live="polite"></span>
+      </div>
+      <p id="key-cache" class="muted" hidden></p>
+    </div>
+    <p id="key-error" class="error" hidden></p>
+  </section>
 </main>
 </body>
 </html>

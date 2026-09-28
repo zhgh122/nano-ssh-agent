@@ -69,9 +69,62 @@ function renderState({ agent, device }) {
     $('st-error').textContent = device.error || '';
 }
 
+let keyLoading = false;
+async function loadKey() {
+    if (keyLoading) return;
+    keyLoading = true;
+    $('key-refresh').disabled = true;
+    try {
+        const key = await api('GET', '/api/key');
+        $('key-empty').hidden = true;
+        $('key-body').hidden = false;
+        $('key-fp').textContent = key.fingerprint;
+        $('key-line').textContent = key.line;
+        $('key-cache').hidden = !key.fromCache;
+        $('key-cache').textContent = key.fromCache
+            ? `ค่าที่อ่านไว้เมื่อ ${new Date(key.fetchedAt).toLocaleString()} (ตอนนี้อ่านจากเครื่องไม่ได้)` : '';
+        $('key-error').hidden = true;
+    } catch (err) {
+        $('key-error').hidden = false;
+        $('key-error').textContent = err.message;
+    } finally {
+        keyLoading = false;
+        $('key-refresh').disabled = false;
+    }
+}
+
+async function copyKey() {
+    const text = $('key-line').textContent;
+    try {
+        await navigator.clipboard.writeText(text);
+        $('key-copied').textContent = 'คัดลอกแล้ว';
+    } catch {
+        // สำรอง: เลือกข้อความไว้ให้กด Ctrl+C เอง
+        const range = document.createRange();
+        range.selectNodeContents($('key-line'));
+        getSelection().removeAllRanges();
+        getSelection().addRange(range);
+        $('key-copied').textContent = 'เลือกข้อความไว้แล้ว กด Ctrl+C';
+    }
+    setTimeout(() => { $('key-copied').textContent = ''; }, 3000);
+}
+
+// อ่าน key ครั้งแรกเมื่อเครื่องพร้อม (แอปเปิดและไม่มีการรอกด)
+let keyLoadedOnce = false;
+function maybeLoadKey({ agent, device }) {
+    if (!keyLoadedOnce && device.appOpen && !agent.pending) {
+        keyLoadedOnce = true;
+        loadKey();
+    }
+}
+
 function connectEvents() {
     const es = new EventSource(`/api/events?token=${encodeURIComponent(token)}`);
-    es.addEventListener('state', (e) => renderState(JSON.parse(e.data)));
+    es.addEventListener('state', (e) => {
+        const st = JSON.parse(e.data);
+        renderState(st);
+        maybeLoadKey(st);
+    });
     es.onopen = () => { $('conn').className = 'pill on'; $('conn').textContent = 'real-time'; };
     es.onerror = () => { $('conn').className = 'pill off'; $('conn').textContent = 'ขาดการเชื่อมต่อ กำลังลองใหม่...'; };
 }
@@ -80,5 +133,7 @@ if (!token) {
     $('no-token').hidden = false;
     $('conn').textContent = 'ไม่มี token';
 } else {
+    $('key-refresh').addEventListener('click', loadKey);
+    $('key-copy').addEventListener('click', copyKey);
     connectEvents();
 }

@@ -10,6 +10,7 @@ const fs = require('fs');
 const { EventEmitter } = require('events');
 const { sshString, uint32, frame, Reader } = require('./ssh-wire');
 const { defaultSocketPath, isNamedPipe, IS_WINDOWS } = require('./sock-path');
+const { ed25519Blob } = require('./ssh-key');
 
 const SSH_AGENT_FAILURE = 5;
 const SSH_AGENTC_REQUEST_IDENTITIES = 11;
@@ -67,7 +68,7 @@ class LedgerAgent extends EventEmitter {
     }
 
     static keyBlob(pub) {
-        return Buffer.concat([sshString(KEY_TYPE), sshString(pub)]);
+        return ed25519Blob(pub);
     }
 
     async handleIdentities() {
