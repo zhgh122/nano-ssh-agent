@@ -23,7 +23,9 @@ function fakeLedger() {
         async sign(p, data) {
             fake.signCalls++;
             await new Promise((r) => setTimeout(r, 20));
-            if (fake.answer === 'reject') throw new Error('Ledger error: 6985 (rejected on device)');
+            if (fake.answer === 'reject') {
+                throw Object.assign(new Error('Ledger error: 6985 (rejected on device)'), { statusWord: '6985' });
+            }
             return crypto.sign(null, data, privateKey).toString('hex');
         },
         async close() {},
@@ -157,4 +159,50 @@ test('start/stop: socket is 0600, removed on stop, and a live socket is not stol
     await b.start();
     assert.strictEqual(b.state().running, true);
     await b.stop();
+});
+
+test('session-bind: a valid host key signature names the server; a forged one is ignored', async (t) => {
+    const ledger = fakeLedger();
+    const hk = crypto.generateKeyPairSync('ed25519');
+    const hkRaw = Buffer.from(hk.publicKey.export({ format: 'jwk' }).x, 'base64url');
+    const hkBlob = Buffer.concat([sshString(Buffer.from('ssh-ed25519')), sshString(hkRaw)]);
+    const resolved = [];
+    const agent = new LedgerAgent({ ledger, socketPath: tmpSock(),
+        resolveHostKey: (blob) => { resolved.push(blob); return { names: ['myserver'], hashedMatches: 0 }; } });
+    const ends = [];
+    agent.on('sign-end', (e) => ends.push(e));
+    await agent.start();
+    t.after(() => agent.stop());
+
+    const bind = (sid, sigOver) => Buffer.concat([Buffer.from([27]), sshString(Buffer.from('session-bind@openssh.com')),
+        sshString(hkBlob), sshString(sid),
+        sshString(Buffer.concat([sshString(Buffer.from('ssh-ed25519')), sshString(crypto.sign(null, sigOver, hk.privateKey))])),
+        Buffer.from([0])]);
+    const userauth = (sid) => Buffer.concat([sshString(sid), Buffer.from([50]), sshString(Buffer.from('ubuntu')),
+        sshString(Buffer.from('ssh-connection')), sshString(Buffer.from('publickey')), Buffer.from([1]),
+        sshString(Buffer.from('ssh-ed25519')), sshString(LedgerAgent.keyBlob(ledger.raw))]);
+    const blob = LedgerAgent.keyBlob(ledger.raw);
+
+    const sid = crypto.randomBytes(32);
+    const [bindOk, signOk] = await request(agent.socketPath, [bind(sid, sid), signRequest(blob, userauth(sid))]);
+    assert.deepStrictEqual([...bindOk], [6]);
+    assert.strictEqual(signOk[0], 14);
+
+    const sid2 = crypto.randomBytes(32);
+    const [bindBad] = await request(agent.socketPath, [bind(sid2, Buffer.from('not the session id'))]);
+    assert.deepStrictEqual([...bindBad], [5]);
+
+    ledger.answer = 'reject';
+    await request(agent.socketPath, [signRequest(blob, userauth(sid2))]);
+
+    assert.strictEqual(ends.length, 2);
+    assert.strictEqual(ends[0].result, 'approved');
+    assert.strictEqual(ends[0].request.user, 'ubuntu');
+    assert.deepStrictEqual(ends[0].request.server.names, ['myserver']);
+    assert.strictEqual(ends[1].result, 'rejected');
+    assert.strictEqual(ends[1].request.server, null, 'forged bind must not name the server');
+    assert.strictEqual(resolved.length, 1);
+    for (const e of ends) {
+        assert.strictEqual(JSON.stringify(e).includes(sid.toString('hex')), false, 'no session id in events');
+    }
 });

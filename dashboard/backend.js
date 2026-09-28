@@ -4,15 +4,22 @@ const { LedgerAgent } = require('../host/lib/agent-core');
 const { DeviceMonitor } = require('../host/lib/device-status');
 const { createDashboard } = require('./server');
 const { authorizedKeyLine, fingerprint, ed25519Blob } = require('../host/lib/ssh-key');
+const { History } = require('../host/lib/history');
 
-async function startBackend({ port = 0, startAgent = true, ledger, socketPath, pollMs = 2000, log = () => {} } = {}) {
+async function startBackend({ port = 0, startAgent = true, ledger, socketPath, historyPath, pollMs = 2000,
+                             log = () => {} } = {}) {
     const agent = new LedgerAgent({ ...(ledger && { ledger }), ...(socketPath && { socketPath }) });
+    const history = new History(historyPath);
     agent.on('log', log);
     const monitor = new DeviceMonitor({ agent, intervalMs: pollMs });
 
     // public key ไม่ใช่ความลับ: เก็บค่าล่าสุดไว้แสดงได้แม้ตอนนี้เครื่องไม่พร้อม
     let lastKey = null;
     const routes = {
+        'GET /api/history': async ({ url }) => {
+            const limit = Math.min(Math.max(Number(url.searchParams.get('limit')) || 100, 1), 1000);
+            return { file: history.file, entries: history.recent(limit) };
+        },
         'GET /api/key': async () => {
             try {
                 const pub = await agent.publicKey();
@@ -31,6 +38,16 @@ async function startBackend({ port = 0, startAgent = true, ledger, socketPath, p
     const dashboard = createDashboard({ agent, monitor, port, routes });
     const { url, port: actualPort } = await dashboard.listen();
 
+    agent.on('sign-end', (e) => {
+        try {
+            const entry = history.append({ time: e.time, ...e.request, keyFingerprint: e.keyFingerprint,
+                result: e.result, error: e.error });
+            dashboard.broadcast('history', entry);
+        } catch (err) {
+            log(`บันทึกประวัติไม่ได้: ${err.message}`);
+        }
+    });
+
     monitor.start();
     let agentError = null;
     if (startAgent) {
@@ -48,6 +65,7 @@ async function startBackend({ port = 0, startAgent = true, ledger, socketPath, p
         token: dashboard.token,
         agent,
         monitor,
+        history,
         agentError,
         async close() {
             monitor.stop();

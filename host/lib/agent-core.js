@@ -3,6 +3,8 @@
 //
 // ใช้ได้ทั้งจาก CLI (agent.js) และ dashboard: สถานะและเหตุการณ์ส่งออกเป็น event
 //   'state'      สถานะเปลี่ยน (เริ่ม/หยุด/เริ่มหรือจบการรอกดบนเครื่อง)
+//   'sign-end'   จบการขอเซ็นหนึ่งครั้ง: { time, request, keyFingerprint, result, error }
+//                request คือสรุปคำขอ (ชนิด, user, server) ไม่มีข้อมูลดิบหรือลายเซ็น
 //   'log'        ข้อความสำหรับแสดงผล
 // agent นี้ไม่มีทางอนุมัติการเซ็นเอง: ทุกลายเซ็นมาจากเครื่องหลังผู้ใช้กด Approve เท่านั้น
 const net = require('net');
@@ -10,9 +12,13 @@ const fs = require('fs');
 const { EventEmitter } = require('events');
 const { sshString, uint32, frame, Reader } = require('./ssh-wire');
 const { defaultSocketPath, isNamedPipe, IS_WINDOWS } = require('./sock-path');
-const { ed25519Blob } = require('./ssh-key');
+const { ed25519Blob, fingerprint } = require('./ssh-key');
+const { describeSignRequest, parseSessionBind, verifySshSignature } = require('./sign-info');
+const { lookupHostKey } = require('./known-hosts');
 
 const SSH_AGENT_FAILURE = 5;
+const SSH_AGENT_SUCCESS = 6;
+const SSH_AGENTC_EXTENSION = 27;
 const SSH_AGENTC_REQUEST_IDENTITIES = 11;
 const SSH_AGENT_IDENTITIES_ANSWER = 12;
 const SSH_AGENTC_SIGN_REQUEST = 13;
@@ -22,14 +28,17 @@ const SSH_AGENT_SIGN_RESPONSE = 14;
 const MAX_MESSAGE_LEN = 256 * 1024;
 
 const KEY_TYPE = Buffer.from('ssh-ed25519');
+const MAX_BINDS_PER_CONNECTION = 16;
 
 class LedgerAgent extends EventEmitter {
-    constructor({ ledger = require('../ledger'), socketPath = defaultSocketPath(), comment = 'ledger' } = {}) {
+    constructor({ ledger = require('../ledger'), socketPath = defaultSocketPath(), comment = 'ledger',
+                  resolveHostKey = (blob) => lookupHostKey(blob) } = {}) {
         super();
         this.ledger = ledger;
         this.path = ledger.SSH_PATH;
         this.socketPath = socketPath;
         this.comment = comment;
+        this.resolveHostKey = resolveHostKey;
         this.server = null;
         this.connections = new Set();
         this.pending = null;          // { since } ระหว่างรอผู้ใช้กดบนเครื่อง
@@ -41,7 +50,7 @@ class LedgerAgent extends EventEmitter {
             running: this.server !== null,
             socketPath: this.socketPath,
             transport: this.ledger.TRANSPORT,
-            pending: this.pending ? { since: this.pending.since } : null,
+            pending: this.pending ? { since: this.pending.since, request: this.pending.request } : null,
         };
     }
 
@@ -77,32 +86,76 @@ class LedgerAgent extends EventEmitter {
             Buffer.concat([uint32(1), sshString(blob), sshString(Buffer.from(this.comment))]));
     }
 
-    async handleSign(body) {
+    // สรุปคำขอสำหรับแสดงผล: เติมชื่อ server จาก known_hosts ถ้า host key ผ่านการตรวจแล้ว
+    describe(data, binds) {
+        const info = describeSignRequest(data, binds);
+        const { serverHostKey, ...request } = info;
+        if (serverHostKey && request.server) {
+            try {
+                const { names, hashedMatches } = this.resolveHostKey(serverHostKey);
+                request.server = { ...request.server, names, hashedMatches };
+            } catch { /* known_hosts อ่านไม่ได้: แสดงแค่ fingerprint */ }
+        }
+        return request;
+    }
+
+    async handleSign(body, ctx) {
         const r = new Reader(body);
         const reqBlob = r.string();
         const data = r.string();
         r.uint32();  // flags ไม่มีผลกับ ed25519
         if (!r.done()) throw new Error('bad sign request');
 
-        if (!reqBlob.equals(LedgerAgent.keyBlob(await this.publicKey()))) throw new Error('unknown key');
+        const pub = await this.publicKey();
+        if (!reqBlob.equals(LedgerAgent.keyBlob(pub))) throw new Error('unknown key');
 
-        this.log(`ขอลายเซ็น ${data.length} ไบต์ รอกดยืนยันบนเครื่อง...`);
-        const sigHex = await this.withDevice(async () => {
-            this.pending = { since: new Date().toISOString() };
-            this.emitState();
-            try {
-                return await this.ledger.sign(this.path, data);
-            } finally {
-                this.pending = null;
+        const request = this.describe(data, ctx.binds);
+        const event = { time: new Date().toISOString(), request, keyFingerprint: fingerprint(reqBlob) };
+        this.log(`ขอลายเซ็น ${data.length} ไบต์ (${request.kind}${request.user ? `, user ${request.user}` : ''}) รอกดยืนยันบนเครื่อง...`);
+        let sigHex;
+        try {
+            sigHex = await this.withDevice(async () => {
+                this.pending = { since: event.time, request };
                 this.emitState();
-            }
-        });
+                try {
+                    return await this.ledger.sign(this.path, data);
+                } finally {
+                    this.pending = null;
+                    this.emitState();
+                }
+            });
+        } catch (err) {
+            const rejected = err.statusWord === '6985';
+            this.emit('sign-end', { ...event, result: rejected ? 'rejected' : 'error',
+                error: rejected ? null : (err.statusWord ? `status ${err.statusWord}` : err.message) });
+            throw err;
+        }
         const sig = Buffer.from(sigHex, 'hex');
-        if (sig.length !== 64) throw new Error(`unexpected signature length ${sig.length}`);
+        if (sig.length !== 64) {
+            this.emit('sign-end', { ...event, result: 'error', error: `unexpected signature length ${sig.length}` });
+            throw new Error(`unexpected signature length ${sig.length}`);
+        }
+        this.emit('sign-end', { ...event, result: 'approved', error: null });
         return frame(SSH_AGENT_SIGN_RESPONSE, sshString(Buffer.concat([sshString(KEY_TYPE), sshString(sig)])));
     }
 
-    async handleMessage(msg) {
+    // session-bind@openssh.com: ssh บอก host key ของ server พร้อมลายเซ็นของ server บน session id
+    // ตรวจลายเซ็นก่อนเก็บ จึงใช้ยืนยันชื่อ server ในคำขอเซ็นที่ตามมาได้
+    handleExtension(body, ctx) {
+        const r = new Reader(body);
+        const name = r.text();
+        if (name !== 'session-bind@openssh.com') return frame(SSH_AGENT_FAILURE);
+        const bind = parseSessionBind(r);
+        if (!verifySshSignature(bind.hostKey, bind.sessionId, bind.signature)) {
+            this.log('session-bind: ลายเซ็นของ host key ไม่ถูกต้อง ไม่เชื่อถือ');
+            return frame(SSH_AGENT_FAILURE);
+        }
+        if (ctx.binds.size >= MAX_BINDS_PER_CONNECTION) ctx.binds.delete(ctx.binds.keys().next().value);
+        ctx.binds.set(bind.sessionId.toString('hex'), { hostKey: bind.hostKey, forwarding: bind.forwarding });
+        return frame(SSH_AGENT_SUCCESS);
+    }
+
+    async handleMessage(msg, ctx = { binds: new Map() }) {
         const type = msg[0];
         const body = msg.subarray(1);
         try {
@@ -110,7 +163,9 @@ class LedgerAgent extends EventEmitter {
                 case SSH_AGENTC_REQUEST_IDENTITIES:
                     return await this.handleIdentities();
                 case SSH_AGENTC_SIGN_REQUEST:
-                    return await this.handleSign(body);
+                    return await this.handleSign(body, ctx);
+                case SSH_AGENTC_EXTENSION:
+                    return this.handleExtension(body, ctx);
                 default:
                     return frame(SSH_AGENT_FAILURE);
             }
@@ -124,6 +179,7 @@ class LedgerAgent extends EventEmitter {
         this.connections.add(conn);
         conn.on('close', () => this.connections.delete(conn));
         let pending = Buffer.alloc(0);
+        const ctx = { binds: new Map() };   // session-bind ที่ตรวจแล้ว ของการเชื่อมต่อนี้เท่านั้น
         // ตอบตามลำดับที่รับเข้ามา แม้ client จะส่งหลายคำขอติดกัน
         let replyChain = Promise.resolve();
 
@@ -140,7 +196,7 @@ class LedgerAgent extends EventEmitter {
                 const msg = pending.subarray(4, 4 + len);
                 pending = pending.subarray(4 + len);
                 replyChain = replyChain
-                    .then(() => this.handleMessage(msg))
+                    .then(() => this.handleMessage(msg, ctx))
                     .then((reply) => { if (!conn.destroyed) conn.write(reply); });
             }
         });
@@ -205,6 +261,8 @@ class LedgerAgent extends EventEmitter {
 module.exports = {
     LedgerAgent,
     SSH_AGENT_FAILURE,
+    SSH_AGENT_SUCCESS,
+    SSH_AGENTC_EXTENSION,
     SSH_AGENTC_REQUEST_IDENTITIES,
     SSH_AGENT_IDENTITIES_ANSWER,
     SSH_AGENTC_SIGN_REQUEST,

@@ -20,7 +20,8 @@
 
   <section id="pending" class="banner" hidden>
     <strong>รอกด Approve หรือ Reject บน Ledger</strong>
-    <span id="pending-since"></span>
+    <span id="pending-what"></span>
+    <span id="pending-since" class="muted"></span>
     <small>กด Approve เฉพาะเมื่อคุณเพิ่งสั่งเชื่อมต่อเอง ถ้าไม่ได้สั่ง ให้กด Reject</small>
   </section>
 
@@ -53,6 +54,19 @@
       <p id="key-cache" class="muted" hidden></p>
     </div>
     <p id="key-error" class="error" hidden></p>
+  </section>
+  <section class="card" id="history">
+    <div class="card-head">
+      <h2>ประวัติการเซ็น</h2>
+      <span id="history-file" class="muted small"></span>
+    </div>
+    <p id="history-empty" class="muted">ยังไม่มีการเซ็น</p>
+    <div class="table-wrap" hidden id="history-wrap">
+      <table>
+        <thead><tr><th>เวลา</th><th>คำขอ</th><th>Server</th><th>ผล</th></tr></thead>
+        <tbody id="history-rows"></tbody>
+      </table>
+    </div>
   </section>
 </main>
 </body>

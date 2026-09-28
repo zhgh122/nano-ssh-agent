@@ -36,9 +36,14 @@ EOF
 /usr/sbin/sshd -f "$D/sshd_config" -E "$D/sshd.log"
 sleep 0.5
 
+# KNOWN_HOSTS_FILE: ให้ ssh เขียน host key ของ sshd ชั่วคราวลงไฟล์นี้ (เช่นให้ dashboard อ่าน)
+# HASH_KNOWN_HOSTS=yes|no: บังคับรูปแบบบรรทัดใน known_hosts (ไม่ตั้ง = ตามค่าของระบบ)
+EXTRA=()
+[ -n "${HASH_KNOWN_HOSTS:-}" ] && EXTRA+=(-o "HashKnownHosts=$HASH_KNOWN_HOSTS")
+
 echo "กำลัง login ... กดยืนยันบนเครื่อง"
-ssh -p "$PORT" \
+ssh -p "$PORT" "${EXTRA[@]}" \
     -o IdentitiesOnly=yes -o IdentityFile="$HERE/speculos-test-key.pub" \
-    -o UserKnownHostsFile="$D/known_hosts" -o StrictHostKeyChecking=accept-new \
+    -o UserKnownHostsFile="${KNOWN_HOSTS_FILE:-$D/known_hosts}" -o StrictHostKeyChecking=accept-new \
     -o BatchMode=yes -o ConnectTimeout=10 \
     "$(whoami)@127.0.0.1" 'echo "LOGIN-OK: $(whoami)@$(hostname)"'

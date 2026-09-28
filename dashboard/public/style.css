@@ -39,3 +39,12 @@ button:disabled { opacity: .5; cursor: default; }
 .row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .keyline { font: 13px ui-monospace, SFMono-Regular, Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere;
            background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin: 12px 0; }
+.small { font-size: 12px; }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+th { color: var(--muted); font-weight: 500; white-space: nowrap; }
+td.when { white-space: nowrap; }
+.sub { display: block; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+.badge { display: inline-block; font-size: 12px; padding: 2px 8px; border-radius: 999px; border: 1px solid; white-space: nowrap; }
+.badge.approved { color: var(--ok); } .badge.rejected { color: var(--warn); } .badge.error { color: var(--bad); }

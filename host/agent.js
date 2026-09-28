@@ -1,9 +1,14 @@
 // ssh-agent แบบ command line: ใช้ agent-core และพิมพ์ log ออกหน้าจอ
 const { LedgerAgent } = require('./lib/agent-core');
 const { IS_WINDOWS } = require('./lib/sock-path');
+const { History } = require('./lib/history');
 
 const agent = new LedgerAgent();
+const history = new History();
 agent.on('log', (message) => console.log(message));
+agent.on('sign-end', (e) => {
+    history.append({ time: e.time, ...e.request, keyFingerprint: e.keyFingerprint, result: e.result, error: e.error });
+});
 
 agent.start()
     .then(({ socketPath }) => {
