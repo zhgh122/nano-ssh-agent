@@ -26,7 +26,13 @@
   </section>
 
   <section class="card" id="status">
-    <h2>สถานะ</h2>
+    <div class="card-head">
+      <h2>สถานะ</h2>
+      <div class="row">
+        <button id="agent-start" class="primary" type="button" hidden>Start agent</button>
+        <button id="agent-stop" type="button" hidden>Stop agent</button>
+      </div>
+    </div>
     <dl class="status-grid">
       <dt>Agent</dt><dd><span id="st-agent" class="dot"></span><span id="st-agent-text">-</span></dd>
       <dt>Socket</dt><dd><code id="st-socket">-</code></dd>
@@ -35,6 +41,7 @@
       <dt>แอปบนเครื่อง</dt><dd><span id="st-app" class="dot"></span><span id="st-app-text">-</span></dd>
     </dl>
     <p id="st-error" class="error" hidden></p>
+    <p id="agent-error" class="error" hidden></p>
   </section>
   <section class="card" id="key">
     <div class="card-head">

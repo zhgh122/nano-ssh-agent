@@ -16,6 +16,15 @@ async function startBackend({ port = 0, startAgent = true, ledger, socketPath, h
     // public key ไม่ใช่ความลับ: เก็บค่าล่าสุดไว้แสดงได้แม้ตอนนี้เครื่องไม่พร้อม
     let lastKey = null;
     const routes = {
+        // เปิด/ปิด socket ของ agent (ไม่เกี่ยวกับการอนุมัติ: การเซ็นยังต้องกดบนเครื่องเสมอ)
+        'POST /api/agent/start': async () => {
+            try {
+                return await agent.start();
+            } catch (err) {
+                throw Object.assign(new Error(err.message), { status: 409 });
+            }
+        },
+        'POST /api/agent/stop': async () => agent.stop(),
         'GET /api/history': async ({ url }) => {
             const limit = Math.min(Math.max(Number(url.searchParams.get('limit')) || 100, 1), 1000);
             return { file: history.file, entries: history.recent(limit) };

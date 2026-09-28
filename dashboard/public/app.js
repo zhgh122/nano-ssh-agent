@@ -128,6 +128,9 @@ function renderState({ agent, device }) {
             : device.connected && !device.locked ? 'ยังไม่ได้เปิดแอป Nano SSH Agent' : '-';
     }
 
+    $('agent-start').hidden = agent.running;
+    $('agent-stop').hidden = !agent.running;
+
     $('pending').hidden = !agent.pending;
     $('pending-since').textContent = agent.pending ? `ตั้งแต่ ${time(agent.pending.since)}` : '';
     if (agent.pending) {
@@ -188,6 +191,20 @@ function maybeLoadKey({ agent, device }) {
     }
 }
 
+async function agentAction(action) {
+    const buttons = [$('agent-start'), $('agent-stop')];
+    buttons.forEach((b) => { b.disabled = true; });
+    $('agent-error').hidden = true;
+    try {
+        await api('POST', `/api/agent/${action}`, {});
+    } catch (err) {
+        $('agent-error').hidden = false;
+        $('agent-error').textContent = action === 'start' ? `เริ่ม agent ไม่ได้: ${err.message}` : err.message;
+    } finally {
+        buttons.forEach((b) => { b.disabled = false; });
+    }
+}
+
 function connectEvents() {
     const es = new EventSource(`/api/events?token=${encodeURIComponent(token)}`);
     es.addEventListener('state', (e) => {
@@ -206,6 +223,8 @@ if (!token) {
 } else {
     $('key-refresh').addEventListener('click', loadKey);
     $('key-copy').addEventListener('click', copyKey);
+    $('agent-start').addEventListener('click', () => agentAction('start'));
+    $('agent-stop').addEventListener('click', () => agentAction('stop'));
     loadHistory();
     connectEvents();
 }
